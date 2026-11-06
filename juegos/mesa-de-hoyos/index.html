@@ -1,0 +1,635 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="theme-color" content="#0d3b2e">
+<title>Mesa de Hoyos · Desafío de Habilidad</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
+  html, body {
+    width: 100%; height: 100%; overflow: hidden;
+    background: #2a1a0e; touch-action: none; overscroll-behavior: none;
+    font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+    user-select: none; -webkit-user-select: none;
+  }
+  canvas { position: fixed; inset: 0; width: 100vw; height: 100vh; display: block; }
+  #hud {
+    position: fixed; top: max(10px, env(safe-area-inset-top)); left: 0; right: 0;
+    display: flex; justify-content: center; gap: 10px; pointer-events: none; z-index: 2;
+  }
+  .chip {
+    background: rgba(0,0,0,.45); color: #fff; border-radius: 999px;
+    padding: 6px 14px; font-size: 15px; font-weight: 600; letter-spacing: .3px;
+    backdrop-filter: blur(4px); -webkit-backdrop-filter: blur(4px);
+    font-variant-numeric: tabular-nums;
+  }
+  #btnRecal {
+    position: fixed; top: calc(max(10px, env(safe-area-inset-top)) + 40px); right: 14px; z-index: 2;
+    background: rgba(0,0,0,.45); color: #fff; border: 0; border-radius: 999px;
+    padding: 6px 12px; font-size: 13px; font-weight: 600; display: none;
+  }
+  .overlay {
+    position: fixed; inset: 0; z-index: 5; display: flex; align-items: center; justify-content: center;
+    background: rgba(5, 20, 15, .78); backdrop-filter: blur(3px); -webkit-backdrop-filter: blur(3px);
+    padding: 24px;
+  }
+  .overlay.hidden { display: none; }
+  .card {
+    background: #f6f1e7; color: #1c1c1c; border-radius: 22px; padding: 28px 24px;
+    max-width: 380px; width: 100%; text-align: center; box-shadow: 0 20px 60px rgba(0,0,0,.5);
+  }
+  .card h1 { font-size: 28px; margin-bottom: 6px; }
+  .card h2 { font-size: 26px; margin-bottom: 8px; }
+  .card p { font-size: 15px; line-height: 1.45; color: #444; margin: 8px 0; }
+  .legend { display: flex; justify-content: center; gap: 18px; margin: 16px 0 6px; }
+  .legend div { display: flex; align-items: center; gap: 8px; font-size: 14px; font-weight: 600; }
+  .dot { width: 22px; height: 22px; border-radius: 50%; display: inline-block; }
+  .dot.w { background: radial-gradient(circle at 35% 35%, #fff, #cfcfcf); border: 1px solid #aaa; }
+  .dot.b { background: radial-gradient(circle at 35% 35%, #666, #050505); }
+  .btn {
+    margin-top: 18px; width: 100%; border: 0; border-radius: 14px; padding: 16px;
+    font-size: 18px; font-weight: 700; background: #0d6b4e; color: #fff;
+  }
+  .btn:active { transform: scale(.98); }
+  .small { font-size: 12.5px !important; color: #777 !important; }
+  .stats { font-size: 18px !important; color: #222 !important; font-weight: 600; }
+</style>
+</head>
+<body>
+<canvas id="c"></canvas>
+
+<div id="hud">
+  <span class="chip" id="hudTime">0.0 s</span>
+  <span class="chip" id="hudScore">0 / 4</span>
+  <span class="chip" id="hudFails">Fallos: 0</span>
+</div>
+<button id="btnRecal">⟲ Recalibrar</button>
+
+<div class="overlay" id="startScreen">
+  <div class="card">
+    <h1>Mesa de Hoyos</h1>
+    <p>Inclinná el celular para mover la mesa y embocá cada bola en el hoyo de <b>su mismo color</b>.</p>
+    <div class="legend">
+      <div><span class="dot w"></span> Blanca → hoyo blanco</div>
+    </div>
+    <div class="legend" style="margin-top:4px">
+      <div><span class="dot b"></span> Negra → hoyo negro</div>
+    </div>
+    <p>Si una bola cae en el hoyo equivocado, vuelve al centro y suma un fallo.</p>
+    <button class="btn" id="btnStart">Jugar</button>
+    <p class="small" id="hint">Sostené el celular en la posición en que vas a jugar al tocar “Jugar”: esa será la mesa “plana”.</p>
+  </div>
+</div>
+
+<div class="overlay hidden" id="winScreen">
+  <div class="card">
+    <h2>¡Mesa completa! 🎉</h2>
+    <p class="stats" id="winStats"></p>
+    <p id="winBest"></p>
+    <button class="btn" id="btnAgain">Jugar otra vez</button>
+  </div>
+</div>
+
+<script>
+(() => {
+  'use strict';
+
+  const canvas = document.getElementById('c');
+  const ctx = canvas.getContext('2d');
+  const $ = id => document.getElementById(id);
+
+  // ---------- Estado ----------
+  let W = 0, H = 0, DPR = 1;
+  let table = { x: 0, y: 0, w: 0, h: 0, border: 0 };
+  let unit = 1;            // escala base según el tamaño de pantalla
+  let ballR = 14, holeR = 24;
+  let balls = [], holes = [];
+  let running = false, finished = false;
+  let startTime = 0, elapsed = 0, fails = 0, sunk = 0;
+  let lastT = 0;
+  let flashes = [];        // efectos visuales al embocar / fallar
+
+  // Inclinación
+  let tilt = { x: 0, y: 0 };            // aceleración normalizada (-1..1)
+  let raw = { beta: 0, gamma: 0 };
+  let base = { beta: 0, gamma: 0 };
+  let hasOrientation = false;
+  let keys = {};
+  let pointerTilt = null;              // control alternativo en compu: arrastrar
+
+  // ---------- Medidas ----------
+  function resize() {
+    DPR = Math.min(window.devicePixelRatio || 1, 2.5);
+    W = window.innerWidth; H = window.innerHeight;
+    canvas.width = Math.round(W * DPR); canvas.height = Math.round(H * DPR);
+    ctx.setTransform(DPR, 0, 0, DPR, 0, 0);
+
+    const prev = { ...table };
+    const border = Math.max(10, Math.min(W, H) * 0.035);
+    table = { x: border, y: border, w: W - border * 2, h: H - border * 2, border };
+    unit = Math.min(table.w, table.h) / 400;
+    ballR = Math.max(11, 15 * unit);
+    holeR = ballR * 1.75;
+
+    // Reescalar posiciones si cambia el tamaño en medio del juego
+    if (prev.w && (balls.length || holes.length)) {
+      const sx = table.w / prev.w, sy = table.h / prev.h;
+      const map = o => { o.x = table.x + (o.x - prev.x) * sx; o.y = table.y + (o.y - prev.y) * sy; };
+      balls.forEach(map); holes.forEach(map);
+    }
+  }
+  window.addEventListener('resize', resize);
+  resize();
+
+  // ---------- Armado de la mesa ----------
+  function rand(a, b) { return a + Math.random() * (b - a); }
+  function dist(a, b) { return Math.hypot(a.x - b.x, a.y - b.y); }
+  function center() { return { x: table.x + table.w / 2, y: table.y + table.h / 2 }; }
+
+  function placeHoles() {
+    holes = [];
+    const colors = ['white', 'white', 'black', 'black'];
+    const c = center();
+    const margin = holeR * 1.6;
+    const minHole = Math.min(table.w, table.h) * 0.38;
+    const minCenter = Math.min(table.w, table.h) * 0.30;
+    for (const color of colors) {
+      let p, tries = 0;
+      do {
+        p = { x: rand(table.x + margin, table.x + table.w - margin),
+              y: rand(table.y + margin, table.y + table.h - margin) };
+        tries++;
+      } while (tries < 400 && (
+        dist(p, c) < minCenter ||
+        holes.some(h => dist(h, p) < minHole * (tries > 250 ? 0.6 : 1))
+      ));
+      holes.push({ ...p, color, pulse: 0 });
+    }
+  }
+
+  function spawnPos(i) {
+    const c = center();
+    const offs = [[-1, -1], [1, -1], [-1, 1], [1, 1]];
+    const d = ballR * 1.6;
+    const o = offs[i % 4];
+    return { x: c.x + o[0] * d, y: c.y + o[1] * d };
+  }
+
+  function placeBalls() {
+    const colors = ['white', 'black', 'black', 'white'];
+    balls = colors.map((color, i) => {
+      const p = spawnPos(i);
+      return { x: p.x, y: p.y, vx: 0, vy: 0, color, state: 'live', t: 0, hole: null, rot: Math.random() * 6 };
+    });
+  }
+
+  function newGame() {
+    resize();
+    placeHoles();
+    placeBalls();
+    fails = 0; sunk = 0; elapsed = 0; flashes = [];
+    finished = false;
+    startTime = performance.now();
+    running = true;
+    updateHud();
+  }
+
+  // ---------- Sensores ----------
+  function screenAngle() {
+    if (screen.orientation && typeof screen.orientation.angle === 'number') return screen.orientation.angle;
+    if (typeof window.orientation === 'number') return window.orientation;
+    return 0;
+  }
+
+  function onOrientation(e) {
+    if (e.beta == null || e.gamma == null) return;
+    hasOrientation = true;
+    raw.beta = e.beta; raw.gamma = e.gamma;
+  }
+
+  function calibrate() {
+    base.beta = raw.beta; base.gamma = raw.gamma;
+  }
+
+  function computeTilt() {
+    let ax = 0, ay = 0;
+    if (hasOrientation) {
+      let db = raw.beta - base.beta;
+      let dg = raw.gamma - base.gamma;
+      // normalizar saltos de ángulo
+      if (db > 180) db -= 360; if (db < -180) db += 360;
+      if (dg > 90) dg -= 180; if (dg < -90) dg += 180;
+      const a = ((screenAngle() % 360) + 360) % 360;
+      let x, y;
+      if (a === 90)       { x = db;  y = -dg; }
+      else if (a === 270) { x = -db; y = dg; }
+      else if (a === 180) { x = -dg; y = -db; }
+      else                { x = dg;  y = db; }
+      const MAX = 35; // grados para inclinación máxima
+      ax = Math.sin(Math.max(-MAX, Math.min(MAX, x)) / MAX * Math.PI / 2);
+      ay = Math.sin(Math.max(-MAX, Math.min(MAX, y)) / MAX * Math.PI / 2);
+    }
+    // Teclado (para probar en compu)
+    const k = (keys.ArrowRight || keys.d ? 1 : 0) - (keys.ArrowLeft || keys.a ? 1 : 0);
+    const l = (keys.ArrowDown || keys.s ? 1 : 0) - (keys.ArrowUp || keys.w ? 1 : 0);
+    if (k || l) { ax = k * 0.8; ay = l * 0.8; }
+    // Arrastre con mouse/dedo como alternativa
+    if (pointerTilt) { ax = pointerTilt.x; ay = pointerTilt.y; }
+    // suavizado
+    tilt.x += (ax - tilt.x) * 0.35;
+    tilt.y += (ay - tilt.y) * 0.35;
+  }
+
+  async function requestSensors() {
+    try {
+      if (typeof DeviceOrientationEvent !== 'undefined' &&
+          typeof DeviceOrientationEvent.requestPermission === 'function') {
+        const r = await DeviceOrientationEvent.requestPermission(); // iPhone
+        if (r !== 'granted') return false;
+      }
+    } catch (_) { return false; }
+    window.addEventListener('deviceorientation', onOrientation);
+    return true;
+  }
+
+  async function goFullscreen() {
+    const el = document.documentElement;
+    try {
+      if (el.requestFullscreen) await el.requestFullscreen({ navigationUI: 'hide' });
+      else if (el.webkitRequestFullscreen) el.webkitRequestFullscreen();
+    } catch (_) {}
+    try { if (screen.orientation && screen.orientation.lock) await screen.orientation.lock(screen.orientation.type); } catch (_) {}
+    try { if ('wakeLock' in navigator) await navigator.wakeLock.request('screen'); } catch (_) {}
+  }
+
+  window.addEventListener('keydown', e => { keys[e.key] = true; });
+  window.addEventListener('keyup', e => { keys[e.key] = false; });
+
+  // Control alternativo: si no hay sensor, mantener apretado y arrastrar desde el centro
+  let pStart = null;
+  canvas.addEventListener('pointerdown', e => {
+    if (hasOrientation) return;
+    pStart = { x: e.clientX, y: e.clientY };
+    pointerTilt = { x: 0, y: 0 };
+  });
+  window.addEventListener('pointermove', e => {
+    if (!pStart) return;
+    const R = Math.min(W, H) * 0.25;
+    pointerTilt = {
+      x: Math.max(-1, Math.min(1, (e.clientX - pStart.x) / R)),
+      y: Math.max(-1, Math.min(1, (e.clientY - pStart.y) / R)),
+    };
+  });
+  window.addEventListener('pointerup', () => { pStart = null; pointerTilt = null; });
+
+  function vibrate(p) { try { navigator.vibrate && navigator.vibrate(p); } catch (_) {} }
+
+  // ---------- Física ----------
+  function physics(dt) {
+    const G = 1400 * unit;     // aceleración máxima (px/s²)
+    const FRICTION = 0.9;      // fricción por segundo (rodadura)
+    const REST = 0.45;         // rebote en las bandas
+    const live = balls.filter(b => b.state === 'live');
+
+    for (const b of live) {
+      b.vx += tilt.x * G * dt;
+      b.vy += tilt.y * G * dt;
+      const f = Math.pow(1 - FRICTION * 0.5, dt);
+      b.vx *= f; b.vy *= f;
+      const maxV = 1600 * unit;
+      const sp = Math.hypot(b.vx, b.vy);
+      if (sp > maxV) { b.vx *= maxV / sp; b.vy *= maxV / sp; }
+
+      // Atracción suave del borde del hoyo (efecto "labio")
+      for (const h of holes) {
+        if (h.taken) continue;
+        const dx = h.x - b.x, dy = h.y - b.y, d = Math.hypot(dx, dy);
+        if (d < holeR && d > 0.001) {
+          const pull = (1 - d / holeR) * 900 * unit;
+          b.vx += dx / d * pull * dt; b.vy += dy / d * pull * dt;
+        }
+      }
+
+      b.x += b.vx * dt; b.y += b.vy * dt;
+      b.rot += (b.vx + b.vy) * dt / ballR * 0.5;
+
+      // Bandas
+      const L = table.x + ballR, R = table.x + table.w - ballR;
+      const T = table.y + ballR, B = table.y + table.h - ballR;
+      if (b.x < L) { b.x = L; if (b.vx < 0) { if (b.vx < -250 * unit) vibrate(8); b.vx = -b.vx * REST; } }
+      if (b.x > R) { b.x = R; if (b.vx > 0) { if (b.vx > 250 * unit) vibrate(8); b.vx = -b.vx * REST; } }
+      if (b.y < T) { b.y = T; if (b.vy < 0) { if (b.vy < -250 * unit) vibrate(8); b.vy = -b.vy * REST; } }
+      if (b.y > B) { b.y = B; if (b.vy > 0) { if (b.vy > 250 * unit) vibrate(8); b.vy = -b.vy * REST; } }
+    }
+
+    // Choques entre bolas
+    for (let i = 0; i < live.length; i++) {
+      for (let j = i + 1; j < live.length; j++) {
+        const a = live[i], c = live[j];
+        const dx = c.x - a.x, dy = c.y - a.y;
+        const d = Math.hypot(dx, dy), min = ballR * 2;
+        if (d < min && d > 0.0001) {
+          const nx = dx / d, ny = dy / d, overlap = (min - d) / 2;
+          a.x -= nx * overlap; a.y -= ny * overlap;
+          c.x += nx * overlap; c.y += ny * overlap;
+          const rel = (c.vx - a.vx) * nx + (c.vy - a.vy) * ny;
+          if (rel < 0) {
+            const imp = -(1 + 0.85) * rel / 2;
+            a.vx -= imp * nx; a.vy -= imp * ny;
+            c.vx += imp * nx; c.vy += imp * ny;
+          }
+        }
+      }
+    }
+
+    // ¿Cayó en un hoyo?
+    for (const b of live) {
+      for (const h of holes) {
+        if (h.taken) continue;
+        if (dist(b, h) < holeR - ballR * 0.55) {
+          b.state = 'falling'; b.t = 0; b.hole = h;
+          b.fx = b.x; b.fy = b.y;
+          if (h.color === b.color) {
+            h.taken = true;
+          }
+          break;
+        }
+      }
+    }
+  }
+
+  function updateFalling(dt) {
+    for (const b of balls) {
+      if (b.state !== 'falling') continue;
+      b.t += dt / 0.35;
+      const h = b.hole;
+      const k = Math.min(1, b.t);
+      b.x = b.fx + (h.x - b.fx) * k;
+      b.y = b.fy + (h.y - b.fy) * k;
+      if (b.t >= 1) {
+        if (h.color === b.color) {
+          b.state = 'in';
+          sunk++;
+          h.pulse = 1;
+          flashes.push({ x: h.x, y: h.y, t: 0, ok: true });
+          vibrate([30, 40, 30]);
+          if (sunk === balls.length) win();
+        } else {
+          fails++;
+          flashes.push({ x: h.x, y: h.y, t: 0, ok: false });
+          vibrate(180);
+          respawn(b);
+        }
+        updateHud();
+      }
+    }
+  }
+
+  function respawn(b) {
+    const c = center();
+    // buscar un lugar libre cerca del centro
+    let p = { x: c.x, y: c.y }, tries = 0;
+    while (tries < 60 && balls.some(o => o !== b && o.state === 'live' && dist(o, p) < ballR * 2.2)) {
+      const a = Math.random() * Math.PI * 2, r = ballR * (2 + tries * 0.15);
+      p = { x: c.x + Math.cos(a) * r, y: c.y + Math.sin(a) * r };
+      tries++;
+    }
+    b.x = p.x; b.y = p.y; b.vx = 0; b.vy = 0;
+    b.state = 'live'; b.hole = null; b.t = 0; b.appear = 1;
+  }
+
+  function win() {
+    finished = true; running = false;
+    elapsed = (performance.now() - startTime) / 1000;
+    const score = elapsed + fails * 5;
+    let best = null;
+    try { best = parseFloat(localStorage.getItem('mesaHoyos.best')); } catch (_) {}
+    let isBest = !best || score < best;
+    if (isBest) { try { localStorage.setItem('mesaHoyos.best', score.toFixed(2)); } catch (_) {} }
+    $('winStats').textContent = `Tiempo: ${elapsed.toFixed(1)} s · Fallos: ${fails}`;
+    $('winBest').innerHTML = isBest
+      ? `<b>¡Nuevo récord!</b> Puntaje ${score.toFixed(1)} (tiempo + 5 s por fallo)`
+      : `Puntaje ${score.toFixed(1)} · Récord: ${best.toFixed(1)}`;
+    setTimeout(() => $('winScreen').classList.remove('hidden'), 700);
+  }
+
+  function updateHud() {
+    $('hudScore').textContent = `${sunk} / ${balls.length || 4}`;
+    $('hudFails').textContent = `Fallos: ${fails}`;
+  }
+
+  // ---------- Dibujo ----------
+  let feltPattern = null, feltKey = '';
+  function makeFelt() {
+    const key = `${W}x${H}`;
+    if (feltKey === key) return;
+    feltKey = key;
+    const off = document.createElement('canvas');
+    off.width = 160; off.height = 160;
+    const o = off.getContext('2d');
+    o.fillStyle = '#0f5a43'; o.fillRect(0, 0, 160, 160);
+    const img = o.getImageData(0, 0, 160, 160);
+    for (let i = 0; i < img.data.length; i += 4) {
+      const n = (Math.random() - 0.5) * 14;
+      img.data[i] += n; img.data[i + 1] += n; img.data[i + 2] += n;
+    }
+    o.putImageData(img, 0, 0);
+    feltPattern = ctx.createPattern(off, 'repeat');
+  }
+
+  function drawTable() {
+    makeFelt();
+    const { x, y, w, h, border } = table;
+    // Marco de madera
+    const wood = ctx.createLinearGradient(0, 0, W, H);
+    wood.addColorStop(0, '#6b3f1d'); wood.addColorStop(0.5, '#8a5428'); wood.addColorStop(1, '#5a3316');
+    ctx.fillStyle = wood; ctx.fillRect(0, 0, W, H);
+    ctx.strokeStyle = 'rgba(0,0,0,.25)'; ctx.lineWidth = 1;
+    for (let i = 0; i < 6; i++) {
+      ctx.beginPath(); ctx.rect(i * 1.5, i * 1.5, W - i * 3, H - i * 3); ctx.stroke();
+    }
+    // Paño
+    ctx.save();
+    const r = border * 0.6;
+    roundRect(x, y, w, h, r);
+    ctx.fillStyle = feltPattern; ctx.fill();
+    // viñeta + sombra interior de la banda
+    const vg = ctx.createRadialGradient(x + w / 2, y + h / 2, Math.min(w, h) * 0.2, x + w / 2, y + h / 2, Math.max(w, h) * 0.75);
+    vg.addColorStop(0, 'rgba(255,255,255,0.05)'); vg.addColorStop(1, 'rgba(0,0,0,0.35)');
+    ctx.fillStyle = vg; ctx.fill();
+    ctx.clip();
+    ctx.shadowColor = 'rgba(0,0,0,.6)'; ctx.shadowBlur = 18 * unit + 6;
+    ctx.lineWidth = 12; ctx.strokeStyle = 'rgba(0,0,0,.5)';
+    roundRect(x - 6, y - 6, w + 12, h + 12, r); ctx.stroke();
+    ctx.restore();
+
+    // marca central (zona de salida)
+    const c = center();
+    ctx.beginPath(); ctx.arc(c.x, c.y, ballR * 3.6, 0, Math.PI * 2);
+    ctx.strokeStyle = 'rgba(255,255,255,.08)'; ctx.lineWidth = 2; ctx.setLineDash([6, 6]); ctx.stroke(); ctx.setLineDash([]);
+  }
+
+  function roundRect(x, y, w, h, r) {
+    ctx.beginPath();
+    ctx.moveTo(x + r, y); ctx.arcTo(x + w, y, x + w, y + h, r); ctx.arcTo(x + w, y + h, x, y + h, r);
+    ctx.arcTo(x, y + h, x, y, r); ctx.arcTo(x, y, x + w, y, r); ctx.closePath();
+  }
+
+  function drawHole(h, time) {
+    const white = h.color === 'white';
+    // anillo de color (identifica el hoyo)
+    const ringR = holeR * 1.28;
+    ctx.beginPath(); ctx.arc(h.x, h.y, ringR, 0, Math.PI * 2);
+    const rg = ctx.createRadialGradient(h.x - ringR * 0.3, h.y - ringR * 0.3, ringR * 0.1, h.x, h.y, ringR);
+    if (white) { rg.addColorStop(0, '#ffffff'); rg.addColorStop(1, '#c9c9c9'); }
+    else { rg.addColorStop(0, '#3a3a3a'); rg.addColorStop(1, '#050505'); }
+    ctx.fillStyle = rg;
+    ctx.shadowColor = 'rgba(0,0,0,.45)'; ctx.shadowBlur = 8; ctx.shadowOffsetY = 2;
+    ctx.fill();
+    ctx.shadowColor = 'transparent'; ctx.shadowBlur = 0; ctx.shadowOffsetY = 0;
+
+    // borde del anillo
+    ctx.lineWidth = 2;
+    ctx.strokeStyle = white ? 'rgba(0,0,0,.25)' : 'rgba(255,255,255,.18)';
+    ctx.stroke();
+
+    // pozo (cóncavo: más oscuro arriba, más claro abajo)
+    ctx.beginPath(); ctx.arc(h.x, h.y, holeR, 0, Math.PI * 2);
+    const pg = ctx.createLinearGradient(h.x, h.y - holeR, h.x, h.y + holeR);
+    if (white) { pg.addColorStop(0, '#7d7d7d'); pg.addColorStop(0.55, '#c4c4c4'); pg.addColorStop(1, '#ededed'); }
+    else { pg.addColorStop(0, '#000'); pg.addColorStop(0.6, '#070707'); pg.addColorStop(1, '#262626'); }
+    ctx.fillStyle = pg; ctx.fill();
+    ctx.lineWidth = 2; ctx.strokeStyle = white ? 'rgba(0,0,0,.35)' : 'rgba(0,0,0,.8)'; ctx.stroke();
+
+    // pulso cuando se emboca
+    if (h.pulse > 0) {
+      ctx.beginPath(); ctx.arc(h.x, h.y, ringR + (1 - h.pulse) * holeR * 1.4, 0, Math.PI * 2);
+      ctx.strokeStyle = `rgba(120,255,170,${h.pulse})`; ctx.lineWidth = 4; ctx.stroke();
+    }
+    // indicador sutil de hoyo libre
+    if (!h.taken && running) {
+      const a = 0.18 + 0.12 * Math.sin(time * 3 + h.x);
+      ctx.beginPath(); ctx.arc(h.x, h.y, ringR + 4, 0, Math.PI * 2);
+      ctx.strokeStyle = white ? `rgba(255,255,255,${a})` : `rgba(0,0,0,${a + 0.1})`;
+      ctx.lineWidth = 2; ctx.stroke();
+    }
+  }
+
+  function drawBall(b, scale = 1, alpha = 1) {
+    const r = ballR * scale;
+    const white = b.color === 'white';
+    ctx.save();
+    ctx.globalAlpha = alpha;
+    // sombra en el paño, desplazada según inclinación
+    if (b.state === 'live') {
+      ctx.beginPath();
+      ctx.ellipse(b.x + r * 0.25 - tilt.x * r * 0.25, b.y + r * 0.35 - tilt.y * r * 0.25, r * 1.0, r * 0.85, 0, 0, Math.PI * 2);
+      ctx.fillStyle = 'rgba(0,0,0,.35)'; ctx.fill();
+    }
+    ctx.beginPath(); ctx.arc(b.x, b.y, r, 0, Math.PI * 2);
+    const g = ctx.createRadialGradient(b.x - r * 0.4, b.y - r * 0.45, r * 0.1, b.x, b.y, r);
+    if (white) { g.addColorStop(0, '#ffffff'); g.addColorStop(0.6, '#ecebe6'); g.addColorStop(1, '#a9a8a2'); }
+    else { g.addColorStop(0, '#5c5c5c'); g.addColorStop(0.45, '#1b1b1b'); g.addColorStop(1, '#000'); }
+    ctx.fillStyle = g; ctx.fill();
+    // brillo
+    ctx.beginPath(); ctx.ellipse(b.x - r * 0.35, b.y - r * 0.42, r * 0.32, r * 0.2, -0.6, 0, Math.PI * 2);
+    ctx.fillStyle = white ? 'rgba(255,255,255,.95)' : 'rgba(255,255,255,.55)'; ctx.fill();
+    ctx.restore();
+  }
+
+  function drawFlashes(dt) {
+    for (const f of flashes) {
+      f.t += dt;
+      const k = f.t / 0.8;
+      if (k >= 1) continue;
+      ctx.beginPath(); ctx.arc(f.x, f.y, holeR * (1 + k * 2.2), 0, Math.PI * 2);
+      ctx.strokeStyle = f.ok ? `rgba(110,255,160,${1 - k})` : `rgba(255,80,80,${1 - k})`;
+      ctx.lineWidth = 5 * (1 - k) + 1; ctx.stroke();
+      ctx.font = `700 ${Math.round(18 * unit + 8)}px system-ui, sans-serif`;
+      ctx.textAlign = 'center'; ctx.fillStyle = f.ok ? `rgba(200,255,215,${1 - k})` : `rgba(255,200,200,${1 - k})`;
+      ctx.fillText(f.ok ? '¡Bien!' : '✗ Color incorrecto', f.x, f.y - holeR * 1.6 - k * 30);
+    }
+    flashes = flashes.filter(f => f.t < 0.8);
+  }
+
+  function draw(dt, time) {
+    ctx.clearRect(0, 0, W, H);
+    drawTable();
+    for (const h of holes) {
+      if (h.pulse > 0) h.pulse = Math.max(0, h.pulse - dt * 1.5);
+      drawHole(h, time);
+    }
+    // bolas ya embocadas (asoman dentro del hoyo)
+    for (const b of balls) if (b.state === 'in') drawBall({ ...b, x: b.hole.x, y: b.hole.y }, 0.72, 0.9);
+    for (const b of balls) if (b.state === 'falling') drawBall(b, 1 - 0.35 * Math.min(1, b.t), 1 - 0.3 * Math.min(1, b.t));
+    for (const b of balls) if (b.state === 'live') {
+      if (b.appear > 0) { b.appear = Math.max(0, b.appear - dt * 3); drawBall(b, 1 + b.appear * 0.5, 1 - b.appear * 0.6); }
+      else drawBall(b);
+    }
+    drawFlashes(dt);
+
+    // indicador de nivel (burbuja) abajo a la izquierda
+    const r = 22, cx = 12 + r + 4, cy = H - Math.max(12, 0) - r - 8;
+    ctx.beginPath(); ctx.arc(cx, cy, r, 0, Math.PI * 2);
+    ctx.fillStyle = 'rgba(0,0,0,.4)'; ctx.fill();
+    ctx.strokeStyle = 'rgba(255,255,255,.35)'; ctx.lineWidth = 1.5; ctx.stroke();
+    ctx.beginPath(); ctx.arc(cx + tilt.x * (r - 6), cy + tilt.y * (r - 6), 5, 0, Math.PI * 2);
+    ctx.fillStyle = '#9ff0c4'; ctx.fill();
+  }
+
+  // ---------- Bucle ----------
+  function loop(t) {
+    const now = t / 1000;
+    let dt = lastT ? now - lastT : 0;
+    lastT = now;
+    dt = Math.min(dt, 1 / 30);
+
+    computeTilt();
+    if (running) {
+      const steps = 4, h = dt / steps;
+      for (let i = 0; i < steps; i++) physics(h);
+      updateFalling(dt);
+      elapsed = (performance.now() - startTime) / 1000;
+      $('hudTime').textContent = `${elapsed.toFixed(1)} s`;
+    }
+    draw(dt, now);
+    requestAnimationFrame(loop);
+  }
+
+  // ---------- Botones ----------
+  async function start() {
+    await goFullscreen();
+    const ok = await requestSensors();
+    $('startScreen').classList.add('hidden');
+    $('btnRecal').style.display = 'block';
+    // dar tiempo a que llegue la primera lectura y tomarla como "mesa plana"
+    setTimeout(() => {
+      calibrate();
+      newGame();
+    }, 350);
+    if (!ok) console.warn('Sin permiso de movimiento: usar teclado o arrastrar.');
+  }
+
+  $('btnStart').addEventListener('click', start);
+  $('btnAgain').addEventListener('click', () => {
+    $('winScreen').classList.add('hidden');
+    calibrate();
+    newGame();
+  });
+  $('btnRecal').addEventListener('click', e => { e.stopPropagation(); calibrate(); });
+
+  // En compu, aclarar controles
+  if (!('ontouchstart' in window)) {
+    $('hint').textContent = 'En compu: usá las flechas (o W A S D), o mantené apretado el mouse y arrastrá.';
+  }
+
+  // Mesa de fondo mientras se muestra el menú
+  placeHoles(); placeBalls(); updateHud();
+  requestAnimationFrame(loop);
+})();
+</script>
+</body>
+</html>
