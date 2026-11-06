@@ -18,14 +18,18 @@
   canvas { position: fixed; inset: 0; width: 100vw; height: 100vh; display: block; }
   #hud {
     position: fixed; top: max(10px, env(safe-area-inset-top)); left: 0; right: 0;
-    display: flex; justify-content: center; gap: 10px; pointer-events: none; z-index: 2;
+    display: flex; justify-content: center; gap: 6px; pointer-events: none; z-index: 2; padding: 0 8px;
   }
   .chip {
-    background: rgba(0,0,0,.45); color: #fff; border-radius: 999px;
-    padding: 6px 14px; font-size: 15px; font-weight: 600; letter-spacing: .3px;
+    background: rgba(0,0,0,.5); color: #fff; border-radius: 999px;
+    padding: 6px 11px; font-size: 14px; font-weight: 700; letter-spacing: .2px; white-space: nowrap;
     backdrop-filter: blur(4px); -webkit-backdrop-filter: blur(4px);
     font-variant-numeric: tabular-nums;
   }
+  #hudScore.minus { animation: minus .5s; }
+  #hudScore.plus { animation: plus .5s; }
+  @keyframes minus { 0%,100% { background: rgba(0,0,0,.5);} 30% { background: #c62828; transform: scale(1.15);} }
+  @keyframes plus { 0%,100% { background: rgba(0,0,0,.5);} 30% { background: #2e9d5b; transform: scale(1.15);} }
   #btnRecal {
     position: fixed; top: calc(max(10px, env(safe-area-inset-top)) + 40px); right: 14px; z-index: 2;
     background: rgba(0,0,0,.45); color: #fff; border: 0; border-radius: 999px;
@@ -34,62 +38,91 @@
   .overlay {
     position: fixed; inset: 0; z-index: 5; display: flex; align-items: center; justify-content: center;
     background: rgba(5, 20, 15, .78); backdrop-filter: blur(3px); -webkit-backdrop-filter: blur(3px);
-    padding: 24px;
+    padding: 20px; overflow-y: auto;
   }
   .overlay.hidden { display: none; }
   .card {
-    background: #f6f1e7; color: #1c1c1c; border-radius: 22px; padding: 28px 24px;
-    max-width: 380px; width: 100%; text-align: center; box-shadow: 0 20px 60px rgba(0,0,0,.5);
+    background: #f6f1e7; color: #1c1c1c; border-radius: 22px; padding: 26px 22px;
+    max-width: 390px; width: 100%; text-align: center; box-shadow: 0 20px 60px rgba(0,0,0,.5);
+    margin: auto;
   }
   .card h1 { font-size: 28px; margin-bottom: 6px; }
-  .card h2 { font-size: 26px; margin-bottom: 8px; }
+  .card h2 { font-size: 26px; margin-bottom: 6px; }
   .card p { font-size: 15px; line-height: 1.45; color: #444; margin: 8px 0; }
-  .legend { display: flex; justify-content: center; gap: 18px; margin: 16px 0 6px; }
-  .legend div { display: flex; align-items: center; gap: 8px; font-size: 14px; font-weight: 600; }
-  .dot { width: 22px; height: 22px; border-radius: 50%; display: inline-block; }
-  .dot.w { background: radial-gradient(circle at 35% 35%, #fff, #cfcfcf); border: 1px solid #aaa; }
-  .dot.b { background: radial-gradient(circle at 35% 35%, #666, #050505); }
+  .kicker { font-size: 13px; font-weight: 800; letter-spacing: 1.5px; text-transform: uppercase; color: #0d6b4e; }
+  .rules { text-align: left; margin: 14px 0 4px; display: grid; gap: 9px; }
+  .rule { display: flex; align-items: center; gap: 10px; font-size: 14.5px; line-height: 1.3; color: #333; }
+  .rule .ic { flex: none; width: 26px; height: 26px; display: flex; align-items: center; justify-content: center; }
+  .dot { width: 22px; height: 22px; border-radius: 50%; display: inline-block; flex: none; }
+  .ring { width: 26px; height: 26px; border-radius: 50%; display: inline-block; border: 5px solid; background: #111; flex: none; }
+  .news { background: #fff7d6; border: 1px solid #f0d66b; border-radius: 12px; padding: 10px 12px; margin-top: 12px; text-align: left; }
+  .news b { color: #8a6200; display: block; font-size: 12px; letter-spacing: 1px; text-transform: uppercase; margin-bottom: 6px; }
+  .legend { display: flex; flex-wrap: wrap; justify-content: center; gap: 8px 14px; margin: 12px 0 2px; }
+  .legend span { display: flex; align-items: center; gap: 6px; font-size: 13.5px; font-weight: 600; }
   .btn {
-    margin-top: 18px; width: 100%; border: 0; border-radius: 14px; padding: 16px;
+    margin-top: 16px; width: 100%; border: 0; border-radius: 14px; padding: 15px;
     font-size: 18px; font-weight: 700; background: #0d6b4e; color: #fff;
   }
+  .btn.sec { background: transparent; color: #0d6b4e; border: 2px solid #0d6b4e; margin-top: 10px; font-size: 16px; padding: 12px; }
   .btn:active { transform: scale(.98); }
   .small { font-size: 12.5px !important; color: #777 !important; }
-  .stats { font-size: 18px !important; color: #222 !important; font-weight: 600; }
+  table.res { width: 100%; margin: 12px 0 0; border-collapse: collapse; font-size: 15px; }
+  table.res td { padding: 6px 4px; border-bottom: 1px solid #e3dccd; }
+  table.res td:last-child { text-align: right; font-weight: 700; font-variant-numeric: tabular-nums; }
+  table.res tr.total td { border-bottom: 0; font-size: 18px; padding-top: 10px; }
+  .neg { color: #c62828; } .pos { color: #1f8a4c; }
 </style>
 </head>
 <body>
 <canvas id="c"></canvas>
 
 <div id="hud">
+  <span class="chip" id="hudLevel">Nivel 1</span>
+  <span class="chip" id="hudScore">0 pts</span>
+  <span class="chip" id="hudBalls">0/4</span>
   <span class="chip" id="hudTime">0.0 s</span>
-  <span class="chip" id="hudScore">0 / 4</span>
-  <span class="chip" id="hudFails">Fallos: 0</span>
 </div>
 <button id="btnRecal">⟲ Recalibrar</button>
 
+<!-- Pantalla inicial -->
 <div class="overlay" id="startScreen">
   <div class="card">
     <h1>Mesa de Hoyos</h1>
     <p>Inclinná el celular para mover la mesa y embocá cada bola en el hoyo de <b>su mismo color</b>.</p>
-    <div class="legend">
-      <div><span class="dot w"></span> Blanca → hoyo blanco</div>
+    <div class="rules">
+      <div class="rule"><span class="ic"><span class="dot" style="background:radial-gradient(circle at 35% 35%,#fff,#cfcfcf);border:1px solid #aaa"></span></span>Bola en su hoyo: <b>&nbsp;+100</b></div>
+      <div class="rule"><span class="ic">↩️</span>Hoyo equivocado: la bola sale expulsada y <b>&nbsp;−50</b></div>
+      <div class="rule"><span class="ic">⏱️</span>Terminá rápido para ganar bonus de tiempo</div>
+      <div class="rule"><span class="ic">⬆️</span>Cada nivel trae más colores, trampas y obstáculos</div>
     </div>
-    <div class="legend" style="margin-top:4px">
-      <div><span class="dot b"></span> Negra → hoyo negro</div>
-    </div>
-    <p>Si una bola cae en el hoyo equivocado, vuelve al centro y suma un fallo.</p>
     <button class="btn" id="btnStart">Jugar</button>
-    <p class="small" id="hint">Sostené el celular en la posición en que vas a jugar al tocar “Jugar”: esa será la mesa “plana”.</p>
+    <button class="btn sec hidden" id="btnContinue" style="display:none"></button>
+    <p class="small" id="hint">Sostené el celular en la posición en que vas a jugar al empezar cada nivel: esa será la mesa “plana”.</p>
+    <p class="small" id="bestLine"></p>
   </div>
 </div>
 
-<div class="overlay hidden" id="winScreen">
+<!-- Intro de nivel -->
+<div class="overlay hidden" id="levelScreen">
   <div class="card">
+    <div class="kicker" id="lvKicker">Nivel 1</div>
+    <h2 id="lvTitle">¡A embocar!</h2>
+    <div class="legend" id="lvLegend"></div>
+    <div class="news" id="lvNews"></div>
+    <button class="btn" id="btnGo">¡Empezar!</button>
+    <p class="small">Sostené el celular cómodo al tocar: esa posición es la mesa plana.</p>
+  </div>
+</div>
+
+<!-- Nivel superado -->
+<div class="overlay hidden" id="doneScreen">
+  <div class="card">
+    <div class="kicker" id="dnKicker">Nivel 1 superado</div>
     <h2>¡Mesa completa! 🎉</h2>
-    <p class="stats" id="winStats"></p>
-    <p id="winBest"></p>
-    <button class="btn" id="btnAgain">Jugar otra vez</button>
+    <table class="res" id="dnTable"></table>
+    <p id="dnBest" class="small"></p>
+    <button class="btn" id="btnNext">Siguiente nivel →</button>
+    <button class="btn sec" id="btnRestart">Empezar de cero</button>
   </div>
 </div>
 
@@ -101,99 +134,180 @@
   const ctx = canvas.getContext('2d');
   const $ = id => document.getElementById(id);
 
+  // ---------- Colores ----------
+  const COLORS = {
+    white:  { name: 'Blanca',   hole: 'blanco',   base: '#efeee8', dark: '#a9a8a2', hi: '#ffffff' },
+    black:  { name: 'Negra',    hole: 'negro',    base: '#1b1b1b', dark: '#000000', hi: '#5c5c5c' },
+    red:    { name: 'Roja',     hole: 'rojo',     base: '#d62828', dark: '#6e0b0b', hi: '#ff9a8f' },
+    blue:   { name: 'Azul',     hole: 'azul',     base: '#2563eb', dark: '#0a2466', hi: '#9ab8ff' },
+    yellow: { name: 'Amarilla', hole: 'amarillo', base: '#f5c518', dark: '#8f6b00', hi: '#fff3b0' },
+    purple: { name: 'Violeta',  hole: 'violeta',  base: '#8b3fd1', dark: '#381060', hi: '#dcb6ff' },
+  };
+  const ORDER = ['white', 'black', 'red', 'blue', 'yellow', 'purple'];
+
+  const PTS = { ok: 100, wrong: -50, trap: -100, decoy: -75 };
+
+  // ---------- Niveles ----------
+  function levelConfig(n) {
+    const nColors = [2, 3, 3, 4, 4, 4, 5, 6][n - 1] || 6;
+    const traps   = n < 4 ? 0 : n < 7 ? 1 : Math.min(4, 2 + Math.floor((n - 7) / 2));
+    const decoys  = n < 6 ? 0 : n < 8 ? 1 : Math.min(3, 2 + Math.floor((n - 8) / 2));
+    const bumpers = n < 3 ? 0 : Math.min(6, 2 + Math.floor((n - 3) / 2));
+    const bars    = n < 5 ? 0 : Math.min(4, 1 + Math.floor((n - 5) / 2));
+    const holeMul = Math.max(1.42, 1.78 - (n - 1) * 0.04);
+    const colors = ORDER.slice(0, nColors);
+    // 2 bolas por color, con un máximo de 8 bolas a embocar
+    const counts = colors.map(() => 2);
+    let total = counts.reduce((a, b) => a + b, 0), i = counts.length - 1;
+    while (total > 8) { counts[i]--; total--; i--; if (i < 0) i = counts.length - 1; }
+    return { n, colors, counts, traps, decoys, bumpers, bars, holeMul, goal: total };
+  }
+
+  function levelNews(n) {
+    const c = levelConfig(n), p = n > 1 ? levelConfig(n - 1) : null;
+    const items = [];
+    if (!p) items.push('Embocá cada bola en el hoyo de su color. Si se equivoca de hoyo, sale expulsada y perdés puntos.');
+    else {
+      c.colors.filter(k => !p.colors.includes(k)).forEach(k =>
+        items.push(`${dotHTML(k)} Nuevo color: bolas y hoyos <b>${COLORS[k].hole}s</b>.`));
+      if (c.traps > p.traps) items.push(p.traps === 0
+        ? `${trapHTML()} <b>Hoyo trampa</b>: ninguna bola tiene que caer ahí (${PTS.trap}).`
+        : `${trapHTML()} Más hoyos trampa (${c.traps}).`);
+      if (c.decoys > p.decoys) items.push(p.decoys === 0
+        ? `${decoyHTML()} <b>Bola prohibida</b>: no la embocas en ningún hoyo (${PTS.decoy}). Molesta en el camino.`
+        : `${decoyHTML()} Más bolas prohibidas (${c.decoys}).`);
+      if (c.bumpers > p.bumpers) items.push(p.bumpers === 0
+        ? `${bumperHTML()} <b>Postes de madera</b> en la mesa: las bolas rebotan.`
+        : `${bumperHTML()} Más postes (${c.bumpers}).`);
+      if (c.bars > p.bars) items.push(p.bars === 0
+        ? `${barHTML()} <b>Barras de madera</b>: bloquean el paso, hay que rodearlas.`
+        : `${barHTML()} Más barras (${c.bars}).`);
+      if (c.holeMul < p.holeMul) items.push('🎯 Los hoyos son un poco más chicos.');
+    }
+    return items;
+  }
+
+  function dotHTML(k) {
+    const C = COLORS[k];
+    return `<span class="dot" style="background:radial-gradient(circle at 35% 35%,${C.hi},${C.base} 60%,${C.dark});${k === 'white' ? 'border:1px solid #aaa' : ''}"></span>`;
+  }
+  function trapHTML() { return `<span class="ring" style="border-color:#b71c1c;color:#ff5252;font-size:12px;line-height:16px;font-weight:900;text-align:center">✕</span>`; }
+  function decoyHTML() { return `<span class="dot" style="background:radial-gradient(circle at 35% 35%,#d6d6d6,#8a8a8a 60%,#4a4a4a);position:relative;outline:2px dashed #c62828;outline-offset:-6px"></span>`; }
+  function barHTML() { return `<span style="display:inline-block;width:26px;height:9px;border-radius:5px;background:linear-gradient(#d39a5e,#6b3f1d);transform:rotate(-25deg);flex:none"></span>`; }
+  function bumperHTML() { return `<span class="dot" style="background:radial-gradient(circle at 40% 35%,#d39a5e,#7a4a22 70%,#4a2a10)"></span>`; }
+
   // ---------- Estado ----------
   let W = 0, H = 0, DPR = 1;
   let table = { x: 0, y: 0, w: 0, h: 0, border: 0 };
-  let unit = 1;            // escala base según el tamaño de pantalla
-  let ballR = 14, holeR = 24;
-  let balls = [], holes = [];
-  let running = false, finished = false;
-  let startTime = 0, elapsed = 0, fails = 0, sunk = 0;
-  let lastT = 0;
-  let flashes = [];        // efectos visuales al embocar / fallar
+  let unit = 1, ballR = 14, holeR = 24, bumpR = 22, barL = 50, barT = 8;
+  let balls = [], holes = [], bumpers = [], bars = [];
+  let cfg = levelConfig(1);
+  let level = 1, score = 0, levelStartScore = 0, penalties = 0;
+  let running = false;
+  let startTime = 0, elapsed = 0, sunk = 0;
+  let lastT = 0, shake = 0;
+  let flashes = [];
 
-  // Inclinación
-  let tilt = { x: 0, y: 0 };            // aceleración normalizada (-1..1)
+  let tilt = { x: 0, y: 0 };
   let raw = { beta: 0, gamma: 0 };
   let base = { beta: 0, gamma: 0 };
   let hasOrientation = false;
   let keys = {};
-  let pointerTilt = null;              // control alternativo en compu: arrastrar
+  let pointerTilt = null;
+
+  const store = {
+    get(k, d) { try { const v = localStorage.getItem('mesaHoyos.' + k); return v == null ? d : JSON.parse(v); } catch (_) { return d; } },
+    set(k, v) { try { localStorage.setItem('mesaHoyos.' + k, JSON.stringify(v)); } catch (_) {} },
+  };
 
   // ---------- Medidas ----------
+  function sizes() {
+    unit = Math.min(table.w, table.h) / 400;
+    ballR = Math.max(10, 14.5 * unit);
+    holeR = ballR * cfg.holeMul;
+    bumpR = ballR * 1.5;
+    barL = ballR * 3.6;   // media longitud de la barra
+    barT = ballR * 0.55;  // medio grosor
+  }
+
   function resize() {
     DPR = Math.min(window.devicePixelRatio || 1, 2.5);
     W = window.innerWidth; H = window.innerHeight;
     canvas.width = Math.round(W * DPR); canvas.height = Math.round(H * DPR);
     ctx.setTransform(DPR, 0, 0, DPR, 0, 0);
-
     const prev = { ...table };
     const border = Math.max(10, Math.min(W, H) * 0.035);
     table = { x: border, y: border, w: W - border * 2, h: H - border * 2, border };
-    unit = Math.min(table.w, table.h) / 400;
-    ballR = Math.max(11, 15 * unit);
-    holeR = ballR * 1.75;
-
-    // Reescalar posiciones si cambia el tamaño en medio del juego
-    if (prev.w && (balls.length || holes.length)) {
+    sizes();
+    if (prev.w && prev.w !== table.w || prev.h && prev.h !== table.h) {
       const sx = table.w / prev.w, sy = table.h / prev.h;
       const map = o => { o.x = table.x + (o.x - prev.x) * sx; o.y = table.y + (o.y - prev.y) * sy; };
-      balls.forEach(map); holes.forEach(map);
+      balls.forEach(map); holes.forEach(map); bumpers.forEach(map); bars.forEach(map);
     }
   }
   window.addEventListener('resize', resize);
   resize();
 
-  // ---------- Armado de la mesa ----------
-  function rand(a, b) { return a + Math.random() * (b - a); }
-  function dist(a, b) { return Math.hypot(a.x - b.x, a.y - b.y); }
-  function center() { return { x: table.x + table.w / 2, y: table.y + table.h / 2 }; }
+  // ---------- Armado ----------
+  const rand = (a, b) => a + Math.random() * (b - a);
+  const dist = (a, b) => Math.hypot(a.x - b.x, a.y - b.y);
+  const center = () => ({ x: table.x + table.w / 2, y: table.y + table.h / 2 });
+  const ringR = () => holeR * 1.28;
 
-  function placeHoles() {
-    holes = [];
-    const colors = ['white', 'white', 'black', 'black'];
+  function shuffle(a) { for (let i = a.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [a[i], a[j]] = [a[j], a[i]]; } return a; }
+
+  function buildLevel(n) {
+    level = n;
+    cfg = levelConfig(n);
+    sizes();
+    holes = []; bumpers = []; bars = []; balls = [];
+
+    const items = [];
+    cfg.colors.forEach((k, i) => { for (let j = 0; j < cfg.counts[i]; j++) items.push({ kind: 'hole', color: k }); });
+    for (let i = 0; i < cfg.traps; i++) items.push({ kind: 'hole', color: null, trap: true });
+    for (let i = 0; i < cfg.bumpers; i++) items.push({ kind: 'bump' });
+    for (let i = 0; i < cfg.bars; i++) items.push({ kind: 'bar' });
+    shuffle(items);
+
+    const nBalls = cfg.goal + cfg.decoys;
     const c = center();
-    const margin = holeR * 1.6;
-    const minHole = Math.min(table.w, table.h) * 0.38;
-    const minCenter = Math.min(table.w, table.h) * 0.30;
-    for (const color of colors) {
-      let p, tries = 0;
-      do {
-        p = { x: rand(table.x + margin, table.x + table.w - margin),
-              y: rand(table.y + margin, table.y + table.h - margin) };
-        tries++;
-      } while (tries < 400 && (
-        dist(p, c) < minCenter ||
-        holes.some(h => dist(h, p) < minHole * (tries > 250 ? 0.6 : 1))
-      ));
-      holes.push({ ...p, color, pulse: 0 });
+    const spawnRad = ballR * 2.3 * Math.sqrt(nBalls) + ballR;
+    const placed = [];
+    const radOf = it => it.kind === 'hole' ? ringR() : it.kind === 'bar' ? barL + barT : bumpR;
+    const gap = ballR * 2.6;
+    for (const it of items) {
+      const r = radOf(it);
+      const m = r + ballR * 0.6;
+      let p = null, best = null, bestScore = -1;
+      for (let t = 0; t < 900; t++) {
+        const top = table.y + Math.max(m, 78);  // dejar libre la zona del marcador
+        const q = { x: rand(table.x + m, table.x + table.w - m), y: rand(top, table.y + table.h - m) };
+        // distancia libre mínima respecto de lo ya colocado
+        let free = dist(q, c) - spawnRad - r - gap;
+        for (const o of placed) free = Math.min(free, dist(q, o) - o.r - r - gap);
+        if (free >= 0) { p = q; break; }
+        if (free > bestScore || best === null) { bestScore = free; best = q; }
+      }
+      p = p || best;
+      const obj = { x: p.x, y: p.y, r };
+      placed.push(obj);
+      if (it.kind === 'hole') holes.push({ x: p.x, y: p.y, color: it.color, trap: !!it.trap, taken: false, pulse: 0 });
+      else if (it.kind === 'bar') bars.push({ x: p.x, y: p.y, a: rand(0, Math.PI), hit: 0 });
+      else bumpers.push({ x: p.x, y: p.y, hit: 0 });
     }
-  }
 
-  function spawnPos(i) {
-    const c = center();
-    const offs = [[-1, -1], [1, -1], [-1, 1], [1, 1]];
-    const d = ballR * 1.6;
-    const o = offs[i % 4];
-    return { x: c.x + o[0] * d, y: c.y + o[1] * d };
-  }
-
-  function placeBalls() {
-    const colors = ['white', 'black', 'black', 'white'];
-    balls = colors.map((color, i) => {
-      const p = spawnPos(i);
-      return { x: p.x, y: p.y, vx: 0, vy: 0, color, state: 'live', t: 0, hole: null, rot: Math.random() * 6 };
+    const ballList = [];
+    cfg.colors.forEach((k, i) => { for (let j = 0; j < cfg.counts[i]; j++) ballList.push({ color: k, decoy: false }); });
+    for (let i = 0; i < cfg.decoys; i++) ballList.push({ color: 'decoy', decoy: true });
+    shuffle(ballList);
+    balls = ballList.map((b, i) => {
+      const a = i * 2.39996, r = i === 0 ? 0 : ballR * 2.25 * Math.sqrt(i);
+      return { ...b, x: c.x + Math.cos(a) * r, y: c.y + Math.sin(a) * r, vx: 0, vy: 0, state: 'live', t: 0, hole: null, immune: 0, appear: 0 };
     });
-  }
 
-  function newGame() {
-    resize();
-    placeHoles();
-    placeBalls();
-    fails = 0; sunk = 0; elapsed = 0; flashes = [];
-    finished = false;
-    startTime = performance.now();
-    running = true;
+    sunk = 0; penalties = 0; elapsed = 0; flashes = [];
+    levelStartScore = score;
+    running = false;
     updateHud();
   }
 
@@ -203,23 +317,17 @@
     if (typeof window.orientation === 'number') return window.orientation;
     return 0;
   }
-
   function onOrientation(e) {
     if (e.beta == null || e.gamma == null) return;
     hasOrientation = true;
     raw.beta = e.beta; raw.gamma = e.gamma;
   }
-
-  function calibrate() {
-    base.beta = raw.beta; base.gamma = raw.gamma;
-  }
+  function calibrate() { base.beta = raw.beta; base.gamma = raw.gamma; }
 
   function computeTilt() {
     let ax = 0, ay = 0;
     if (hasOrientation) {
-      let db = raw.beta - base.beta;
-      let dg = raw.gamma - base.gamma;
-      // normalizar saltos de ángulo
+      let db = raw.beta - base.beta, dg = raw.gamma - base.gamma;
       if (db > 180) db -= 360; if (db < -180) db += 360;
       if (dg > 90) dg -= 180; if (dg < -90) dg += 180;
       const a = ((screenAngle() % 360) + 360) % 360;
@@ -228,38 +336,38 @@
       else if (a === 270) { x = -db; y = dg; }
       else if (a === 180) { x = -dg; y = -db; }
       else                { x = dg;  y = db; }
-      const MAX = 35; // grados para inclinación máxima
+      const MAX = 35;
       ax = Math.sin(Math.max(-MAX, Math.min(MAX, x)) / MAX * Math.PI / 2);
       ay = Math.sin(Math.max(-MAX, Math.min(MAX, y)) / MAX * Math.PI / 2);
     }
-    // Teclado (para probar en compu)
     const k = (keys.ArrowRight || keys.d ? 1 : 0) - (keys.ArrowLeft || keys.a ? 1 : 0);
     const l = (keys.ArrowDown || keys.s ? 1 : 0) - (keys.ArrowUp || keys.w ? 1 : 0);
     if (k || l) { ax = k * 0.8; ay = l * 0.8; }
-    // Arrastre con mouse/dedo como alternativa
     if (pointerTilt) { ax = pointerTilt.x; ay = pointerTilt.y; }
-    // suavizado
     tilt.x += (ax - tilt.x) * 0.35;
     tilt.y += (ay - tilt.y) * 0.35;
   }
 
+  let sensorsAsked = false;
   async function requestSensors() {
+    if (sensorsAsked) return;
+    sensorsAsked = true;
     try {
-      if (typeof DeviceOrientationEvent !== 'undefined' &&
-          typeof DeviceOrientationEvent.requestPermission === 'function') {
-        const r = await DeviceOrientationEvent.requestPermission(); // iPhone
-        if (r !== 'granted') return false;
+      if (typeof DeviceOrientationEvent !== 'undefined' && typeof DeviceOrientationEvent.requestPermission === 'function') {
+        const r = await DeviceOrientationEvent.requestPermission();
+        if (r !== 'granted') return;
       }
-    } catch (_) { return false; }
+    } catch (_) { return; }
     window.addEventListener('deviceorientation', onOrientation);
-    return true;
   }
 
   async function goFullscreen() {
     const el = document.documentElement;
     try {
-      if (el.requestFullscreen) await el.requestFullscreen({ navigationUI: 'hide' });
-      else if (el.webkitRequestFullscreen) el.webkitRequestFullscreen();
+      if (!document.fullscreenElement) {
+        if (el.requestFullscreen) await el.requestFullscreen({ navigationUI: 'hide' });
+        else if (el.webkitRequestFullscreen) el.webkitRequestFullscreen();
+      }
     } catch (_) {}
     try { if (screen.orientation && screen.orientation.lock) await screen.orientation.lock(screen.orientation.type); } catch (_) {}
     try { if ('wakeLock' in navigator) await navigator.wakeLock.request('screen'); } catch (_) {}
@@ -268,12 +376,10 @@
   window.addEventListener('keydown', e => { keys[e.key] = true; });
   window.addEventListener('keyup', e => { keys[e.key] = false; });
 
-  // Control alternativo: si no hay sensor, mantener apretado y arrastrar desde el centro
   let pStart = null;
   canvas.addEventListener('pointerdown', e => {
     if (hasOrientation) return;
-    pStart = { x: e.clientX, y: e.clientY };
-    pointerTilt = { x: 0, y: 0 };
+    pStart = { x: e.clientX, y: e.clientY }; pointerTilt = { x: 0, y: 0 };
   });
   window.addEventListener('pointermove', e => {
     if (!pStart) return;
@@ -287,59 +393,97 @@
 
   function vibrate(p) { try { navigator.vibrate && navigator.vibrate(p); } catch (_) {} }
 
+  // ---------- Puntos ----------
+  function addPoints(d, x, y, label) {
+    score += d;
+    if (d < 0) penalties += d;
+    flashes.push({ x, y, t: 0, ok: d > 0, text: label ? `${label} ${d > 0 ? '+' : ''}${d}` : `${d > 0 ? '+' : ''}${d}` });
+    const el = $('hudScore');
+    el.classList.remove('minus', 'plus'); void el.offsetWidth;
+    el.classList.add(d > 0 ? 'plus' : 'minus');
+    updateHud();
+  }
+
   // ---------- Física ----------
   function physics(dt) {
-    const G = 1400 * unit;     // aceleración máxima (px/s²)
-    const FRICTION = 0.9;      // fricción por segundo (rodadura)
-    const REST = 0.45;         // rebote en las bandas
+    const G = 1400 * unit;
+    const REST = 0.45;
     const live = balls.filter(b => b.state === 'live');
 
     for (const b of live) {
+      if (b.immune > 0) b.immune -= dt;
       b.vx += tilt.x * G * dt;
       b.vy += tilt.y * G * dt;
-      const f = Math.pow(1 - FRICTION * 0.5, dt);
+      const f = Math.pow(0.55, dt);
       b.vx *= f; b.vy *= f;
-      const maxV = 1600 * unit;
-      const sp = Math.hypot(b.vx, b.vy);
+      const maxV = 1600 * unit, sp = Math.hypot(b.vx, b.vy);
       if (sp > maxV) { b.vx *= maxV / sp; b.vy *= maxV / sp; }
 
-      // Atracción suave del borde del hoyo (efecto "labio")
-      for (const h of holes) {
-        if (h.taken) continue;
-        const dx = h.x - b.x, dy = h.y - b.y, d = Math.hypot(dx, dy);
-        if (d < holeR && d > 0.001) {
-          const pull = (1 - d / holeR) * 900 * unit;
-          b.vx += dx / d * pull * dt; b.vy += dy / d * pull * dt;
+      if (b.immune <= 0) {
+        for (const h of holes) {
+          if (h.taken) continue;
+          const dx = h.x - b.x, dy = h.y - b.y, d = Math.hypot(dx, dy);
+          if (d < holeR && d > 0.001) {
+            const pull = (1 - d / holeR) * 900 * unit;
+            b.vx += dx / d * pull * dt; b.vy += dy / d * pull * dt;
+          }
         }
       }
 
       b.x += b.vx * dt; b.y += b.vy * dt;
-      b.rot += (b.vx + b.vy) * dt / ballR * 0.5;
 
-      // Bandas
       const L = table.x + ballR, R = table.x + table.w - ballR;
       const T = table.y + ballR, B = table.y + table.h - ballR;
-      if (b.x < L) { b.x = L; if (b.vx < 0) { if (b.vx < -250 * unit) vibrate(8); b.vx = -b.vx * REST; } }
-      if (b.x > R) { b.x = R; if (b.vx > 0) { if (b.vx > 250 * unit) vibrate(8); b.vx = -b.vx * REST; } }
-      if (b.y < T) { b.y = T; if (b.vy < 0) { if (b.vy < -250 * unit) vibrate(8); b.vy = -b.vy * REST; } }
-      if (b.y > B) { b.y = B; if (b.vy > 0) { if (b.vy > 250 * unit) vibrate(8); b.vy = -b.vy * REST; } }
+      const hard = 250 * unit;
+      if (b.x < L) { b.x = L; if (b.vx < 0) { if (b.vx < -hard) vibrate(8); b.vx = -b.vx * REST; } }
+      if (b.x > R) { b.x = R; if (b.vx > 0) { if (b.vx > hard) vibrate(8); b.vx = -b.vx * REST; } }
+      if (b.y < T) { b.y = T; if (b.vy < 0) { if (b.vy < -hard) vibrate(8); b.vy = -b.vy * REST; } }
+      if (b.y > B) { b.y = B; if (b.vy > 0) { if (b.vy > hard) vibrate(8); b.vy = -b.vy * REST; } }
+
+      // Postes
+      for (const p of bumpers) {
+        const dx = b.x - p.x, dy = b.y - p.y, d = Math.hypot(dx, dy), min = ballR + bumpR;
+        if (d < min && d > 0.0001) {
+          const nx = dx / d, ny = dy / d;
+          b.x = p.x + nx * min; b.y = p.y + ny * min;
+          const vn = b.vx * nx + b.vy * ny;
+          if (vn < 0) {
+            b.vx -= (1 + 0.7) * vn * nx; b.vy -= (1 + 0.7) * vn * ny;
+            if (vn < -hard) { p.hit = 1; vibrate(10); }
+          }
+        }
+      }
+
+      // Barras (cápsulas)
+      for (const r of bars) {
+        const ux = Math.cos(r.a), uy = Math.sin(r.a);
+        const t = Math.max(-barL, Math.min(barL, (b.x - r.x) * ux + (b.y - r.y) * uy));
+        const qx = r.x + ux * t, qy = r.y + uy * t;
+        const dx = b.x - qx, dy = b.y - qy, d = Math.hypot(dx, dy), min = ballR + barT;
+        if (d < min && d > 0.0001) {
+          const nx = dx / d, ny = dy / d;
+          b.x = qx + nx * min; b.y = qy + ny * min;
+          const vn = b.vx * nx + b.vy * ny;
+          if (vn < 0) {
+            b.vx -= (1 + 0.5) * vn * nx; b.vy -= (1 + 0.5) * vn * ny;
+            if (vn < -hard) { r.hit = 1; vibrate(10); }
+          }
+        }
+      }
     }
 
     // Choques entre bolas
     for (let i = 0; i < live.length; i++) {
       for (let j = i + 1; j < live.length; j++) {
         const a = live[i], c = live[j];
-        const dx = c.x - a.x, dy = c.y - a.y;
-        const d = Math.hypot(dx, dy), min = ballR * 2;
+        const dx = c.x - a.x, dy = c.y - a.y, d = Math.hypot(dx, dy), min = ballR * 2;
         if (d < min && d > 0.0001) {
-          const nx = dx / d, ny = dy / d, overlap = (min - d) / 2;
-          a.x -= nx * overlap; a.y -= ny * overlap;
-          c.x += nx * overlap; c.y += ny * overlap;
+          const nx = dx / d, ny = dy / d, ov = (min - d) / 2;
+          a.x -= nx * ov; a.y -= ny * ov; c.x += nx * ov; c.y += ny * ov;
           const rel = (c.vx - a.vx) * nx + (c.vy - a.vy) * ny;
           if (rel < 0) {
             const imp = -(1 + 0.85) * rel / 2;
-            a.vx -= imp * nx; a.vy -= imp * ny;
-            c.vx += imp * nx; c.vy += imp * ny;
+            a.vx -= imp * nx; a.vy -= imp * ny; c.vx += imp * nx; c.vy += imp * ny;
           }
         }
       }
@@ -347,14 +491,15 @@
 
     // ¿Cayó en un hoyo?
     for (const b of live) {
+      if (b.immune > 0) continue;
       for (const h of holes) {
         if (h.taken) continue;
         if (dist(b, h) < holeR - ballR * 0.55) {
-          b.state = 'falling'; b.t = 0; b.hole = h;
+          const good = !h.trap && !b.decoy && h.color === b.color;
+          b.state = 'falling'; b.t = 0; b.hole = h; b.good = good;
           b.fx = b.x; b.fy = b.y;
-          if (h.color === b.color) {
-            h.taken = true;
-          }
+          b.inV = { x: b.vx, y: b.vy };
+          if (good) h.taken = true;
           break;
         }
       }
@@ -364,69 +509,107 @@
   function updateFalling(dt) {
     for (const b of balls) {
       if (b.state !== 'falling') continue;
-      b.t += dt / 0.35;
       const h = b.hole;
+      b.t += dt / (b.good ? 0.32 : 0.22);
       const k = Math.min(1, b.t);
       b.x = b.fx + (h.x - b.fx) * k;
       b.y = b.fy + (h.y - b.fy) * k;
-      if (b.t >= 1) {
-        if (h.color === b.color) {
-          b.state = 'in';
-          sunk++;
-          h.pulse = 1;
-          flashes.push({ x: h.x, y: h.y, t: 0, ok: true });
-          vibrate([30, 40, 30]);
-          if (sunk === balls.length) win();
-        } else {
-          fails++;
-          flashes.push({ x: h.x, y: h.y, t: 0, ok: false });
-          vibrate(180);
-          respawn(b);
-        }
-        updateHud();
+      if (b.t < 1) continue;
+      if (b.good) {
+        b.state = 'in'; sunk++; h.pulse = 1;
+        addPoints(PTS.ok, h.x, h.y);
+        vibrate([30, 40, 30]);
+        if (sunk === cfg.goal) levelComplete();
+      } else {
+        let pts, label;
+        if (h.trap) { pts = PTS.trap; label = '¡Trampa!'; }
+        else if (b.decoy) { pts = PTS.decoy; label = '¡Prohibida!'; }
+        else { pts = PTS.wrong; label = 'Color equivocado'; }
+        addPoints(pts, h.x, h.y, label);
+        vibrate(200); shake = 1;
+        eject(b, h);
       }
     }
   }
 
-  function respawn(b) {
+  // La bola "escupida" sale del hoyo hacia el lado de donde vino
+  function eject(b, h) {
     const c = center();
-    // buscar un lugar libre cerca del centro
-    let p = { x: c.x, y: c.y }, tries = 0;
-    while (tries < 60 && balls.some(o => o !== b && o.state === 'live' && dist(o, p) < ballR * 2.2)) {
-      const a = Math.random() * Math.PI * 2, r = ballR * (2 + tries * 0.15);
-      p = { x: c.x + Math.cos(a) * r, y: c.y + Math.sin(a) * r };
-      tries++;
+    let dx = -(b.inV.x), dy = -(b.inV.y);
+    let len = Math.hypot(dx, dy);
+    if (len < 1) { dx = c.x - h.x; dy = c.y - h.y; len = Math.hypot(dx, dy) || 1; }
+    dx /= len; dy /= len;
+    const ang = Math.atan2(dy, dx) + rand(-0.5, 0.5);
+    dx = Math.cos(ang); dy = Math.sin(ang);
+    const off = ringR() + ballR + 2;
+    let x = h.x + dx * off, y = h.y + dy * off;
+    // si queda fuera de la mesa, tirarla hacia el centro
+    if (x < table.x + ballR || x > table.x + table.w - ballR || y < table.y + ballR || y > table.y + table.h - ballR) {
+      dx = c.x - h.x; dy = c.y - h.y; len = Math.hypot(dx, dy) || 1; dx /= len; dy /= len;
+      x = h.x + dx * off; y = h.y + dy * off;
     }
-    b.x = p.x; b.y = p.y; b.vx = 0; b.vy = 0;
-    b.state = 'live'; b.hole = null; b.t = 0; b.appear = 1;
+    const sp = 650 * unit;
+    Object.assign(b, { x, y, vx: dx * sp, vy: dy * sp, state: 'live', hole: null, t: 0, immune: 0.55, appear: 1 });
+    h.pulse = -1;
   }
 
-  function win() {
-    finished = true; running = false;
+  // ---------- Fin de nivel ----------
+  function levelComplete() {
+    running = false;
     elapsed = (performance.now() - startTime) / 1000;
-    const score = elapsed + fails * 5;
-    let best = null;
-    try { best = parseFloat(localStorage.getItem('mesaHoyos.best')); } catch (_) {}
-    let isBest = !best || score < best;
-    if (isBest) { try { localStorage.setItem('mesaHoyos.best', score.toFixed(2)); } catch (_) {} }
-    $('winStats').textContent = `Tiempo: ${elapsed.toFixed(1)} s · Fallos: ${fails}`;
-    $('winBest').innerHTML = isBest
-      ? `<b>¡Nuevo récord!</b> Puntaje ${score.toFixed(1)} (tiempo + 5 s por fallo)`
-      : `Puntaje ${score.toFixed(1)} · Récord: ${best.toFixed(1)}`;
-    setTimeout(() => $('winScreen').classList.remove('hidden'), 700);
+    const par = 8 + 5 * cfg.goal;
+    const bonus = Math.max(0, Math.round((par - elapsed) * 10));
+    const gained = cfg.goal * PTS.ok;
+    score += bonus;
+    updateHud();
+
+    const best = store.get('best', 0);
+    const isBest = score > best;
+    if (isBest) store.set('best', score);
+    store.set('save', { level: level + 1, score });
+    store.set('maxLevel', Math.max(store.get('maxLevel', 1), level + 1));
+
+    $('dnKicker').textContent = `Nivel ${level} superado`;
+    $('dnTable').innerHTML = `
+      <tr><td>Bolas embocadas (${cfg.goal} × ${PTS.ok})</td><td class="pos">+${gained}</td></tr>
+      <tr><td>Penalizaciones</td><td class="${penalties ? 'neg' : ''}">${penalties}</td></tr>
+      <tr><td>Bonus de tiempo (${elapsed.toFixed(1)} s)</td><td class="pos">+${bonus}</td></tr>
+      <tr class="total"><td>Puntaje total</td><td>${score}</td></tr>`;
+    $('dnBest').textContent = isBest ? '¡Nuevo récord!' : `Récord: ${best} pts`;
+    setTimeout(() => $('doneScreen').classList.remove('hidden'), 750);
+  }
+
+  function showLevelIntro() {
+    buildLevel(level);
+    $('lvKicker').textContent = `Nivel ${level}`;
+    $('lvTitle').textContent = level === 1 ? '¡A embocar!' : ['¡Bien ahí!', 'Se complica…', '¡Seguí así!', 'Nivel experto'][Math.min(3, Math.floor((level - 2) / 2))];
+    $('lvLegend').innerHTML = cfg.colors.map((k, i) => `<span>${dotHTML(k)} ${COLORS[k].name} ×${cfg.counts[i]}</span>`).join('')
+      + (cfg.decoys ? `<span>${decoyHTML()} Prohibida ×${cfg.decoys}</span>` : '')
+      + (cfg.traps ? `<span>${trapHTML()} Trampa ×${cfg.traps}</span>` : '')
+      + (cfg.bumpers ? `<span>${bumperHTML()} Postes ×${cfg.bumpers}</span>` : '')
+      + (cfg.bars ? `<span>${barHTML()} Barras ×${cfg.bars}</span>` : '');
+    const news = levelNews(level);
+    $('lvNews').innerHTML = `<b>${level === 1 ? 'Cómo se juega' : 'Novedades'}</b>` + news.map(t => `<div class="rule">${t}</div>`).join('');
+    $('levelScreen').classList.remove('hidden');
+  }
+
+  function beginLevel() {
+    $('levelScreen').classList.add('hidden');
+    calibrate();
+    startTime = performance.now();
+    running = true;
   }
 
   function updateHud() {
-    $('hudScore').textContent = `${sunk} / ${balls.length || 4}`;
-    $('hudFails').textContent = `Fallos: ${fails}`;
+    $('hudLevel').textContent = `Nivel ${level}`;
+    $('hudScore').textContent = `${score} pts`;
+    $('hudBalls').textContent = `${sunk}/${cfg.goal}`;
   }
 
   // ---------- Dibujo ----------
-  let feltPattern = null, feltKey = '';
+  let feltPattern = null;
   function makeFelt() {
-    const key = `${W}x${H}`;
-    if (feltKey === key) return;
-    feltKey = key;
+    if (feltPattern) return;
     const off = document.createElement('canvas');
     off.width = 160; off.height = 160;
     const o = off.getContext('2d');
@@ -440,23 +623,22 @@
     feltPattern = ctx.createPattern(off, 'repeat');
   }
 
+  function roundRect(x, y, w, h, r) {
+    ctx.beginPath();
+    ctx.moveTo(x + r, y); ctx.arcTo(x + w, y, x + w, y + h, r); ctx.arcTo(x + w, y + h, x, y + h, r);
+    ctx.arcTo(x, y + h, x, y, r); ctx.arcTo(x, y, x + w, y, r); ctx.closePath();
+  }
+
   function drawTable() {
     makeFelt();
     const { x, y, w, h, border } = table;
-    // Marco de madera
     const wood = ctx.createLinearGradient(0, 0, W, H);
     wood.addColorStop(0, '#6b3f1d'); wood.addColorStop(0.5, '#8a5428'); wood.addColorStop(1, '#5a3316');
-    ctx.fillStyle = wood; ctx.fillRect(0, 0, W, H);
-    ctx.strokeStyle = 'rgba(0,0,0,.25)'; ctx.lineWidth = 1;
-    for (let i = 0; i < 6; i++) {
-      ctx.beginPath(); ctx.rect(i * 1.5, i * 1.5, W - i * 3, H - i * 3); ctx.stroke();
-    }
-    // Paño
+    ctx.fillStyle = wood; ctx.fillRect(-20, -20, W + 40, H + 40);
     ctx.save();
     const r = border * 0.6;
     roundRect(x, y, w, h, r);
     ctx.fillStyle = feltPattern; ctx.fill();
-    // viñeta + sombra interior de la banda
     const vg = ctx.createRadialGradient(x + w / 2, y + h / 2, Math.min(w, h) * 0.2, x + w / 2, y + h / 2, Math.max(w, h) * 0.75);
     vg.addColorStop(0, 'rgba(255,255,255,0.05)'); vg.addColorStop(1, 'rgba(0,0,0,0.35)');
     ctx.fillStyle = vg; ctx.fill();
@@ -465,119 +647,181 @@
     ctx.lineWidth = 12; ctx.strokeStyle = 'rgba(0,0,0,.5)';
     roundRect(x - 6, y - 6, w + 12, h + 12, r); ctx.stroke();
     ctx.restore();
-
-    // marca central (zona de salida)
-    const c = center();
-    ctx.beginPath(); ctx.arc(c.x, c.y, ballR * 3.6, 0, Math.PI * 2);
-    ctx.strokeStyle = 'rgba(255,255,255,.08)'; ctx.lineWidth = 2; ctx.setLineDash([6, 6]); ctx.stroke(); ctx.setLineDash([]);
-  }
-
-  function roundRect(x, y, w, h, r) {
-    ctx.beginPath();
-    ctx.moveTo(x + r, y); ctx.arcTo(x + w, y, x + w, y + h, r); ctx.arcTo(x + w, y + h, x, y + h, r);
-    ctx.arcTo(x, y + h, x, y, r); ctx.arcTo(x, y, x + w, y, r); ctx.closePath();
   }
 
   function drawHole(h, time) {
-    const white = h.color === 'white';
-    // anillo de color (identifica el hoyo)
-    const ringR = holeR * 1.28;
-    ctx.beginPath(); ctx.arc(h.x, h.y, ringR, 0, Math.PI * 2);
-    const rg = ctx.createRadialGradient(h.x - ringR * 0.3, h.y - ringR * 0.3, ringR * 0.1, h.x, h.y, ringR);
-    if (white) { rg.addColorStop(0, '#ffffff'); rg.addColorStop(1, '#c9c9c9'); }
-    else { rg.addColorStop(0, '#3a3a3a'); rg.addColorStop(1, '#050505'); }
-    ctx.fillStyle = rg;
+    const rr = ringR();
+    ctx.beginPath(); ctx.arc(h.x, h.y, rr, 0, Math.PI * 2);
     ctx.shadowColor = 'rgba(0,0,0,.45)'; ctx.shadowBlur = 8; ctx.shadowOffsetY = 2;
-    ctx.fill();
-    ctx.shadowColor = 'transparent'; ctx.shadowBlur = 0; ctx.shadowOffsetY = 0;
+    if (h.trap) {
+      ctx.fillStyle = '#2a0707'; ctx.fill();
+      ctx.shadowColor = 'transparent'; ctx.shadowBlur = 0; ctx.shadowOffsetY = 0;
+      // anillo de advertencia rayado
+      ctx.save(); ctx.clip();
+      ctx.strokeStyle = '#c62828'; ctx.lineWidth = rr * 0.18;
+      for (let i = -4; i <= 4; i++) {
+        ctx.beginPath(); ctx.moveTo(h.x + i * rr * 0.45 - rr, h.y - rr); ctx.lineTo(h.x + i * rr * 0.45 + rr, h.y + rr); ctx.stroke();
+      }
+      ctx.restore();
+    } else {
+      const C = COLORS[h.color];
+      const rg = ctx.createRadialGradient(h.x - rr * 0.3, h.y - rr * 0.3, rr * 0.1, h.x, h.y, rr);
+      rg.addColorStop(0, C.hi); rg.addColorStop(0.55, C.base); rg.addColorStop(1, C.dark);
+      ctx.fillStyle = rg; ctx.fill();
+      ctx.shadowColor = 'transparent'; ctx.shadowBlur = 0; ctx.shadowOffsetY = 0;
+      ctx.lineWidth = 2; ctx.strokeStyle = h.color === 'black' ? 'rgba(255,255,255,.18)' : 'rgba(0,0,0,.25)'; ctx.stroke();
+    }
 
-    // borde del anillo
-    ctx.lineWidth = 2;
-    ctx.strokeStyle = white ? 'rgba(0,0,0,.25)' : 'rgba(255,255,255,.18)';
-    ctx.stroke();
-
-    // pozo (cóncavo: más oscuro arriba, más claro abajo)
+    // pozo
     ctx.beginPath(); ctx.arc(h.x, h.y, holeR, 0, Math.PI * 2);
     const pg = ctx.createLinearGradient(h.x, h.y - holeR, h.x, h.y + holeR);
-    if (white) { pg.addColorStop(0, '#7d7d7d'); pg.addColorStop(0.55, '#c4c4c4'); pg.addColorStop(1, '#ededed'); }
-    else { pg.addColorStop(0, '#000'); pg.addColorStop(0.6, '#070707'); pg.addColorStop(1, '#262626'); }
+    if (h.color === 'white') { pg.addColorStop(0, '#7d7d7d'); pg.addColorStop(0.55, '#c4c4c4'); pg.addColorStop(1, '#ededed'); }
+    else if (h.trap || h.color === 'black') { pg.addColorStop(0, '#000'); pg.addColorStop(0.6, '#070707'); pg.addColorStop(1, '#262626'); }
+    else { const C = COLORS[h.color]; pg.addColorStop(0, '#000'); pg.addColorStop(0.55, C.dark); pg.addColorStop(1, C.base); }
     ctx.fillStyle = pg; ctx.fill();
-    ctx.lineWidth = 2; ctx.strokeStyle = white ? 'rgba(0,0,0,.35)' : 'rgba(0,0,0,.8)'; ctx.stroke();
+    ctx.lineWidth = 2; ctx.strokeStyle = 'rgba(0,0,0,.6)'; ctx.stroke();
 
-    // pulso cuando se emboca
+    if (h.trap) {
+      const s = holeR * 0.42;
+      ctx.strokeStyle = 'rgba(255,82,82,.85)'; ctx.lineWidth = 3.5; ctx.lineCap = 'round';
+      ctx.beginPath(); ctx.moveTo(h.x - s, h.y - s); ctx.lineTo(h.x + s, h.y + s);
+      ctx.moveTo(h.x + s, h.y - s); ctx.lineTo(h.x - s, h.y + s); ctx.stroke();
+    }
+
     if (h.pulse > 0) {
-      ctx.beginPath(); ctx.arc(h.x, h.y, ringR + (1 - h.pulse) * holeR * 1.4, 0, Math.PI * 2);
+      ctx.beginPath(); ctx.arc(h.x, h.y, rr + (1 - h.pulse) * holeR * 1.4, 0, Math.PI * 2);
       ctx.strokeStyle = `rgba(120,255,170,${h.pulse})`; ctx.lineWidth = 4; ctx.stroke();
+    } else if (h.pulse < 0) {
+      const p = -h.pulse;
+      ctx.beginPath(); ctx.arc(h.x, h.y, rr + (1 - p) * holeR * 1.2, 0, Math.PI * 2);
+      ctx.strokeStyle = `rgba(255,70,70,${p})`; ctx.lineWidth = 5; ctx.stroke();
     }
-    // indicador sutil de hoyo libre
-    if (!h.taken && running) {
-      const a = 0.18 + 0.12 * Math.sin(time * 3 + h.x);
-      ctx.beginPath(); ctx.arc(h.x, h.y, ringR + 4, 0, Math.PI * 2);
-      ctx.strokeStyle = white ? `rgba(255,255,255,${a})` : `rgba(0,0,0,${a + 0.1})`;
-      ctx.lineWidth = 2; ctx.stroke();
+    if (!h.taken && running && !h.trap) {
+      const a = 0.15 + 0.12 * Math.sin(time * 3 + h.x);
+      ctx.beginPath(); ctx.arc(h.x, h.y, rr + 4, 0, Math.PI * 2);
+      ctx.strokeStyle = `rgba(255,255,255,${a})`; ctx.lineWidth = 2; ctx.stroke();
     }
+  }
+
+  function drawBumper(p, dt) {
+    if (p.hit > 0) p.hit = Math.max(0, p.hit - dt * 4);
+    const r = bumpR * (1 + p.hit * 0.08);
+    ctx.beginPath(); ctx.ellipse(p.x + r * 0.2, p.y + r * 0.3, r, r * 0.9, 0, 0, Math.PI * 2);
+    ctx.fillStyle = 'rgba(0,0,0,.35)'; ctx.fill();
+    ctx.beginPath(); ctx.arc(p.x, p.y, r, 0, Math.PI * 2);
+    const g = ctx.createRadialGradient(p.x - r * 0.3, p.y - r * 0.35, r * 0.1, p.x, p.y, r);
+    g.addColorStop(0, '#d9a066'); g.addColorStop(0.65, '#7a4a22'); g.addColorStop(1, '#40220b');
+    ctx.fillStyle = g; ctx.fill();
+    ctx.beginPath(); ctx.arc(p.x, p.y, r * 0.55, 0, Math.PI * 2);
+    ctx.strokeStyle = 'rgba(0,0,0,.25)'; ctx.lineWidth = 1.5; ctx.stroke();
+    ctx.beginPath(); ctx.arc(p.x, p.y, r * 0.3, 0, Math.PI * 2); ctx.stroke();
+  }
+
+  function drawBar(r, dt) {
+    if (r.hit > 0) r.hit = Math.max(0, r.hit - dt * 4);
+    ctx.save();
+    ctx.translate(r.x, r.y); ctx.rotate(r.a);
+    const L = barL + barT, T = barT * (1 + r.hit * 0.15);
+    // sombra
+    ctx.save(); ctx.translate(T * 0.4, T * 0.7);
+    roundRect(-L, -T, L * 2, T * 2, T); ctx.fillStyle = 'rgba(0,0,0,.35)'; ctx.fill();
+    ctx.restore();
+    roundRect(-L, -T, L * 2, T * 2, T);
+    const g = ctx.createLinearGradient(0, -T, 0, T);
+    g.addColorStop(0, '#d9a066'); g.addColorStop(0.5, '#8a5428'); g.addColorStop(1, '#4a280c');
+    ctx.fillStyle = g; ctx.fill();
+    ctx.strokeStyle = 'rgba(0,0,0,.3)'; ctx.lineWidth = 1; ctx.stroke();
+    // vetas
+    ctx.strokeStyle = 'rgba(60,30,10,.35)'; ctx.lineWidth = 1;
+    ctx.beginPath(); ctx.moveTo(-L * 0.8, -T * 0.25); ctx.quadraticCurveTo(0, T * 0.15, L * 0.8, -T * 0.3); ctx.stroke();
+    ctx.restore();
   }
 
   function drawBall(b, scale = 1, alpha = 1) {
     const r = ballR * scale;
-    const white = b.color === 'white';
     ctx.save();
     ctx.globalAlpha = alpha;
-    // sombra en el paño, desplazada según inclinación
     if (b.state === 'live') {
       ctx.beginPath();
-      ctx.ellipse(b.x + r * 0.25 - tilt.x * r * 0.25, b.y + r * 0.35 - tilt.y * r * 0.25, r * 1.0, r * 0.85, 0, 0, Math.PI * 2);
+      ctx.ellipse(b.x + r * 0.25 - tilt.x * r * 0.25, b.y + r * 0.35 - tilt.y * r * 0.25, r, r * 0.85, 0, 0, Math.PI * 2);
       ctx.fillStyle = 'rgba(0,0,0,.35)'; ctx.fill();
     }
     ctx.beginPath(); ctx.arc(b.x, b.y, r, 0, Math.PI * 2);
     const g = ctx.createRadialGradient(b.x - r * 0.4, b.y - r * 0.45, r * 0.1, b.x, b.y, r);
-    if (white) { g.addColorStop(0, '#ffffff'); g.addColorStop(0.6, '#ecebe6'); g.addColorStop(1, '#a9a8a2'); }
-    else { g.addColorStop(0, '#5c5c5c'); g.addColorStop(0.45, '#1b1b1b'); g.addColorStop(1, '#000'); }
+    if (b.decoy) { g.addColorStop(0, '#e0e0e0'); g.addColorStop(0.55, '#8a8a8a'); g.addColorStop(1, '#3d3d3d'); }
+    else { const C = COLORS[b.color]; g.addColorStop(0, C.hi); g.addColorStop(b.color === 'black' ? 0.45 : 0.6, C.base); g.addColorStop(1, C.dark); }
     ctx.fillStyle = g; ctx.fill();
-    // brillo
+    if (b.decoy) {
+      ctx.save(); ctx.clip();
+      const s = r * 0.5;
+      ctx.strokeStyle = '#d32f2f'; ctx.lineWidth = r * 0.28; ctx.lineCap = 'round';
+      ctx.beginPath(); ctx.moveTo(b.x - s, b.y - s); ctx.lineTo(b.x + s, b.y + s);
+      ctx.moveTo(b.x + s, b.y - s); ctx.lineTo(b.x - s, b.y + s); ctx.stroke();
+      ctx.restore();
+    }
     ctx.beginPath(); ctx.ellipse(b.x - r * 0.35, b.y - r * 0.42, r * 0.32, r * 0.2, -0.6, 0, Math.PI * 2);
-    ctx.fillStyle = white ? 'rgba(255,255,255,.95)' : 'rgba(255,255,255,.55)'; ctx.fill();
+    ctx.fillStyle = b.color === 'white' ? 'rgba(255,255,255,.95)' : 'rgba(255,255,255,.55)'; ctx.fill();
     ctx.restore();
   }
 
   function drawFlashes(dt) {
     for (const f of flashes) {
       f.t += dt;
-      const k = f.t / 0.8;
+      const k = f.t / 1.1;
       if (k >= 1) continue;
-      ctx.beginPath(); ctx.arc(f.x, f.y, holeR * (1 + k * 2.2), 0, Math.PI * 2);
-      ctx.strokeStyle = f.ok ? `rgba(110,255,160,${1 - k})` : `rgba(255,80,80,${1 - k})`;
-      ctx.lineWidth = 5 * (1 - k) + 1; ctx.stroke();
-      ctx.font = `700 ${Math.round(18 * unit + 8)}px system-ui, sans-serif`;
-      ctx.textAlign = 'center'; ctx.fillStyle = f.ok ? `rgba(200,255,215,${1 - k})` : `rgba(255,200,200,${1 - k})`;
-      ctx.fillText(f.ok ? '¡Bien!' : '✗ Color incorrecto', f.x, f.y - holeR * 1.6 - k * 30);
+      if (k < 0.7) {
+        const kk = k / 0.7;
+        ctx.beginPath(); ctx.arc(f.x, f.y, holeR * (1 + kk * 2.2), 0, Math.PI * 2);
+        ctx.strokeStyle = f.ok ? `rgba(110,255,160,${1 - kk})` : `rgba(255,80,80,${1 - kk})`;
+        ctx.lineWidth = 5 * (1 - kk) + 1; ctx.stroke();
+      }
+      const fs = Math.round(15 * unit + 8);
+      ctx.font = `800 ${fs}px system-ui, sans-serif`;
+      ctx.textAlign = 'center';
+      const half = ctx.measureText(f.text).width / 2 + 10;
+      let tx = Math.max(table.x + half, Math.min(table.x + table.w - half, f.x));
+      let ty = f.y - holeR * 1.7 - k * 40;
+      if (ty < table.y + 60) ty = f.y + holeR * 2.2 + k * 40;
+      ctx.lineWidth = 4; ctx.strokeStyle = `rgba(0,0,0,${0.6 * (1 - k)})`;
+      ctx.strokeText(f.text, tx, ty);
+      ctx.fillStyle = f.ok ? `rgba(190,255,210,${1 - k})` : `rgba(255,190,190,${1 - k})`;
+      ctx.fillText(f.text, tx, ty);
     }
-    flashes = flashes.filter(f => f.t < 0.8);
+    flashes = flashes.filter(f => f.t < 1.1);
   }
 
   function draw(dt, time) {
-    ctx.clearRect(0, 0, W, H);
+    ctx.save();
+    if (shake > 0) {
+      const s = shake * 7;
+      ctx.translate(rand(-s, s), rand(-s, s));
+      shake = Math.max(0, shake - dt * 4);
+    }
+    ctx.clearRect(-20, -20, W + 40, H + 40);
     drawTable();
     for (const h of holes) {
       if (h.pulse > 0) h.pulse = Math.max(0, h.pulse - dt * 1.5);
+      else if (h.pulse < 0) h.pulse = Math.min(0, h.pulse + dt * 1.8);
       drawHole(h, time);
     }
-    // bolas ya embocadas (asoman dentro del hoyo)
+    for (const p of bumpers) drawBumper(p, dt);
+    for (const r of bars) drawBar(r, dt);
     for (const b of balls) if (b.state === 'in') drawBall({ ...b, x: b.hole.x, y: b.hole.y }, 0.72, 0.9);
     for (const b of balls) if (b.state === 'falling') drawBall(b, 1 - 0.35 * Math.min(1, b.t), 1 - 0.3 * Math.min(1, b.t));
     for (const b of balls) if (b.state === 'live') {
-      if (b.appear > 0) { b.appear = Math.max(0, b.appear - dt * 3); drawBall(b, 1 + b.appear * 0.5, 1 - b.appear * 0.6); }
+      if (b.appear > 0) { b.appear = Math.max(0, b.appear - dt * 3); drawBall(b, 1 + b.appear * 0.4, 1); }
       else drawBall(b);
     }
     drawFlashes(dt);
 
-    // indicador de nivel (burbuja) abajo a la izquierda
-    const r = 22, cx = 12 + r + 4, cy = H - Math.max(12, 0) - r - 8;
+    // nivel de burbuja
+    const r = 22, cx = table.x + r + 8, cy = table.y + table.h - r - 8;
     ctx.beginPath(); ctx.arc(cx, cy, r, 0, Math.PI * 2);
     ctx.fillStyle = 'rgba(0,0,0,.4)'; ctx.fill();
     ctx.strokeStyle = 'rgba(255,255,255,.35)'; ctx.lineWidth = 1.5; ctx.stroke();
     ctx.beginPath(); ctx.arc(cx + tilt.x * (r - 6), cy + tilt.y * (r - 6), 5, 0, Math.PI * 2);
     ctx.fillStyle = '#9ff0c4'; ctx.fill();
+    ctx.restore();
   }
 
   // ---------- Bucle ----------
@@ -586,7 +830,6 @@
     let dt = lastT ? now - lastT : 0;
     lastT = now;
     dt = Math.min(dt, 1 / 30);
-
     computeTilt();
     if (running) {
       const steps = 4, h = dt / steps;
@@ -594,41 +837,62 @@
       updateFalling(dt);
       elapsed = (performance.now() - startTime) / 1000;
       $('hudTime').textContent = `${elapsed.toFixed(1)} s`;
+    } else {
+      updateFalling(dt);
     }
     draw(dt, now);
     requestAnimationFrame(loop);
   }
 
   // ---------- Botones ----------
-  async function start() {
+  async function startFrom(lv, sc) {
     await goFullscreen();
-    const ok = await requestSensors();
+    await requestSensors();
     $('startScreen').classList.add('hidden');
     $('btnRecal').style.display = 'block';
-    // dar tiempo a que llegue la primera lectura y tomarla como "mesa plana"
-    setTimeout(() => {
-      calibrate();
-      newGame();
-    }, 350);
-    if (!ok) console.warn('Sin permiso de movimiento: usar teclado o arrastrar.');
+    level = lv; score = sc;
+    $('hudTime').textContent = '0.0 s';
+    setTimeout(showLevelIntro, 150);
   }
 
-  $('btnStart').addEventListener('click', start);
-  $('btnAgain').addEventListener('click', () => {
-    $('winScreen').classList.add('hidden');
-    calibrate();
-    newGame();
+  $('btnStart').addEventListener('click', () => { store.set('save', null); startFrom(1, 0); });
+  const save = store.get('save', null);
+  if (save && save.level > 1) {
+    const b = $('btnContinue');
+    b.style.display = 'block';
+    b.textContent = `Continuar en el nivel ${save.level} (${save.score} pts)`;
+    b.addEventListener('click', () => startFrom(save.level, save.score));
+    $('btnStart').textContent = 'Empezar de cero';
+  }
+  const best = store.get('best', 0);
+  if (best) $('bestLine').textContent = `Récord: ${best} pts · Nivel máximo: ${store.get('maxLevel', 1)}`;
+
+  $('btnGo').addEventListener('click', beginLevel);
+  $('btnNext').addEventListener('click', () => {
+    $('doneScreen').classList.add('hidden');
+    level++;
+    $('hudTime').textContent = '0.0 s';
+    showLevelIntro();
+  });
+  $('btnRestart').addEventListener('click', () => {
+    $('doneScreen').classList.add('hidden');
+    store.set('save', null);
+    level = 1; score = 0;
+    $('hudTime').textContent = '0.0 s';
+    showLevelIntro();
   });
   $('btnRecal').addEventListener('click', e => { e.stopPropagation(); calibrate(); });
 
-  // En compu, aclarar controles
   if (!('ontouchstart' in window)) {
     $('hint').textContent = 'En compu: usá las flechas (o W A S D), o mantené apretado el mouse y arrastrá.';
   }
 
-  // Mesa de fondo mientras se muestra el menú
-  placeHoles(); placeBalls(); updateHud();
+  // Mesa de fondo detrás del menú
+  buildLevel(1);
   requestAnimationFrame(loop);
+
+  // Acceso para pruebas
+  window.__mesa = { get balls() { return balls; }, get holes() { return holes; }, get bars() { return bars; }, get bumpers() { return bumpers; }, get score() { return score; }, get level() { return level; }, buildLevel, levelConfig };
 })();
 </script>
 </body>
