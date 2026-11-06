@@ -1,0 +1,1315 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="theme-color" content="#1b6f8a">
+<title>Tejo · Desafío de Habilidad</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
+  html, body {
+    width: 100%; height: 100%; overflow: hidden; background: #e2c48f;
+    touch-action: none; overscroll-behavior: none;
+    font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+    user-select: none; -webkit-user-select: none;
+  }
+  canvas { position: fixed; inset: 0; width: 100vw; height: 100vh; display: block; }
+  #hud {
+    position: fixed; top: max(8px, env(safe-area-inset-top)); left: 0; right: 0; z-index: 2;
+    display: flex; justify-content: center; align-items: center; gap: 6px; pointer-events: none; padding: 0 8px;
+  }
+  .chip {
+    background: rgba(0,0,0,.5); color: #fff; border-radius: 999px; padding: 6px 11px;
+    font-size: 14px; font-weight: 700; white-space: nowrap; display: flex; align-items: center; gap: 6px;
+    backdrop-filter: blur(4px); -webkit-backdrop-filter: blur(4px); font-variant-numeric: tabular-nums;
+    max-width: 42vw; overflow: hidden; text-overflow: ellipsis;
+  }
+  .chip .d { width: 12px; height: 12px; border-radius: 50%; flex: none; }
+  .chip.turn { box-shadow: 0 0 0 2px #ffd54a; }
+  .chip.small { font-size: 12px; padding: 5px 9px; background: rgba(0,0,0,.35); }
+  #btnMenu {
+    position: fixed; top: calc(max(8px, env(safe-area-inset-top)) + 40px); left: 10px; z-index: 2;
+    background: rgba(0,0,0,.45); color: #fff; border: 0; border-radius: 999px;
+    padding: 6px 12px; font-size: 13px; font-weight: 600; display: none;
+  }
+  #netState {
+    position: fixed; top: calc(max(8px, env(safe-area-inset-top)) + 40px); right: 10px; z-index: 2;
+    background: rgba(0,0,0,.45); color: #fff; border-radius: 999px; padding: 6px 10px; font-size: 12px; font-weight: 600; display: none;
+  }
+  .overlay {
+    position: fixed; inset: 0; z-index: 5; display: flex; align-items: center; justify-content: center;
+    background: rgba(20, 40, 50, .72); backdrop-filter: blur(3px); -webkit-backdrop-filter: blur(3px);
+    padding: 18px; overflow-y: auto;
+  }
+  .overlay.hidden { display: none; }
+  .card {
+    background: #fbf5ea; color: #1c1c1c; border-radius: 22px; padding: 24px 20px;
+    max-width: 390px; width: 100%; text-align: center; box-shadow: 0 20px 60px rgba(0,0,0,.45); margin: auto;
+  }
+  .card h1 { font-size: 32px; margin-bottom: 4px; }
+  .card h2 { font-size: 25px; margin-bottom: 6px; }
+  .card p { font-size: 15px; line-height: 1.45; color: #444; margin: 8px 0; }
+  .kicker { font-size: 13px; font-weight: 800; letter-spacing: 1.5px; text-transform: uppercase; color: #1b6f8a; }
+  .rules { text-align: left; margin: 12px 0 4px; display: grid; gap: 8px; }
+  .rule { display: flex; align-items: flex-start; gap: 10px; font-size: 14.5px; line-height: 1.35; color: #333; }
+  .rule .ic { flex: none; width: 24px; text-align: center; font-size: 17px; }
+  .news { background: #e5f4f7; border: 1px solid #9fd0db; border-radius: 12px; padding: 10px 12px; margin-top: 12px; text-align: left; }
+  .news b.t { color: #17586d; display: block; font-size: 12px; letter-spacing: 1px; text-transform: uppercase; margin-bottom: 6px; }
+  .news .rule + .rule { margin-top: 6px; }
+  .btn {
+    margin-top: 12px; width: 100%; border: 0; border-radius: 14px; padding: 15px;
+    font-size: 17px; font-weight: 700; background: #1b6f8a; color: #fff; font-family: inherit;
+  }
+  .btn.alt { background: #d2691e; }
+  .btn.sec { background: transparent; color: #1b6f8a; border: 2px solid #1b6f8a; font-size: 16px; padding: 12px; }
+  .btn:disabled { opacity: .5; }
+  .btn:active { transform: scale(.98); }
+  .small { font-size: 12.5px !important; color: #777 !important; }
+  .row { display: flex; gap: 8px; }
+  .row .btn { margin-top: 10px; }
+  input.txt {
+    width: 100%; font-size: 17px; padding: 12px 14px; border-radius: 12px; border: 2px solid #d8cdb8;
+    background: #fff; font-family: inherit; margin-top: 8px; text-align: center;
+  }
+  input.code { font-size: 28px; letter-spacing: 8px; text-transform: uppercase; font-weight: 800; }
+  .bigcode { font-size: 46px; font-weight: 900; letter-spacing: 10px; color: #1b6f8a; margin: 6px 0; font-variant-numeric: tabular-nums; }
+  .seg { display: flex; gap: 6px; justify-content: center; margin-top: 8px; }
+  .seg button { flex: 1; border: 2px solid #d8cdb8; background: #fff; border-radius: 10px; padding: 9px 0; font-size: 15px; font-weight: 700; font-family: inherit; color: #333; }
+  .seg button.on { border-color: #1b6f8a; background: #1b6f8a; color: #fff; }
+  .lbl { font-size: 12px; font-weight: 800; letter-spacing: 1px; text-transform: uppercase; color: #777; margin-top: 14px; text-align: left; }
+  .err { color: #c62828 !important; font-weight: 600; }
+  table.res { width: 100%; margin: 12px 0 0; border-collapse: collapse; font-size: 15px; }
+  table.res td { padding: 6px 4px; border-bottom: 1px solid #e6dccb; text-align: left; }
+  table.res td:last-child { text-align: right; font-weight: 700; font-variant-numeric: tabular-nums; }
+  table.res tr.total td { border-bottom: 0; font-size: 18px; padding-top: 10px; }
+  .dot { display: inline-block; width: 12px; height: 12px; border-radius: 50%; vertical-align: middle; margin-right: 4px; }
+  .spin { display: inline-block; width: 18px; height: 18px; border: 3px solid #cfe5ea; border-top-color: #1b6f8a; border-radius: 50%; animation: sp 1s linear infinite; vertical-align: middle; margin-right: 6px; }
+  @keyframes sp { to { transform: rotate(360deg); } }
+</style>
+</head>
+<body>
+<canvas id="c"></canvas>
+
+<div id="hud" style="display:none">
+  <span class="chip" id="hudP0"><span class="d" style="background:#e53935"></span><span id="hudN0">Vos</span> <b id="hudS0">0</b></span>
+  <span class="chip small" id="hudTarget">a 7</span>
+  <span class="chip" id="hudP1"><span class="d" style="background:#1e63d6"></span><span id="hudN1">Máquina</span> <b id="hudS1">0</b></span>
+</div>
+<button id="btnMenu">☰ Menú</button>
+<div id="netState">🟢 En vivo</div>
+
+<!-- Inicio -->
+<div class="overlay" id="startScreen">
+  <div class="card">
+    <h1>Tejo</h1>
+    <p>Tirá tus tejos para que queden <b>lo más cerca posible del tejín</b>. Gana la ronda el que arrima más.</p>
+    <div class="rules">
+      <div class="rule"><span class="ic">👆</span><span>Apoyá el dedo, deslizalo hacia arriba y soltá. Más largo = más lejos; inclinado = apunta.</span></div>
+      <div class="rule"><span class="ic">📏</span><span>Cada tejo tuyo más cerca que el mejor del rival suma <b>1 punto</b>.</span></div>
+      <div class="rule"><span class="ic">🎯</span><span>Tejo arriba del tejín: <b>¡Tejo!</b> vale <b>3</b>.</span></div>
+    </div>
+    <button class="btn" id="btnCpu">Contra la máquina</button>
+    <button class="btn alt" id="btnOnline">📡 Desafío en vivo (cada uno en su celu)</button>
+    <button class="btn sec" id="btnLocal">👥 2 jugadores en este celu</button>
+    <div id="lvGrid"></div>
+    <p class="small" id="bestLine"></p>
+  </div>
+</div>
+
+<!-- Intro de nivel -->
+<div class="overlay hidden" id="levelScreen">
+  <div class="card">
+    <div class="kicker" id="lvKicker">Nivel 1</div>
+    <h2 id="lvTitle">Rival: Novato</h2>
+    <div class="news" id="lvNews"></div>
+    <button class="btn" id="btnGo">¡A jugar!</button>
+  </div>
+</div>
+
+<!-- Sala en vivo -->
+<div class="overlay hidden" id="lobbyScreen">
+  <div class="card">
+    <div class="kicker">Desafío en vivo</div>
+    <h2>Jugá con otro celular</h2>
+    <div id="lobbyMain">
+      <div class="lbl">Tu nombre</div>
+      <input class="txt" id="inName" maxlength="14" placeholder="Tu nombre">
+      <div class="lbl">Partido a</div>
+      <div class="seg" id="segTarget">
+        <button data-v="7">7</button><button data-v="9" class="on">9</button><button data-v="15">15</button>
+      </div>
+      <button class="btn" id="btnCreate">Crear sala</button>
+      <div class="lbl">¿Te pasaron un código?</div>
+      <input class="txt code" id="inCode" maxlength="5" placeholder="CÓDIGO" autocomplete="off" autocapitalize="characters">
+      <button class="btn alt" id="btnJoin">Unirme</button>
+    </div>
+    <div id="lobbyWait" style="display:none">
+      <p>Pasale este código a tu rival:</p>
+      <div class="bigcode" id="myCode">-----</div>
+      <button class="btn sec" id="btnShare" style="margin-top:4px">Compartir invitación</button>
+      <p id="waitMsg"><span class="spin"></span>Esperando que se una…</p>
+    </div>
+    <p id="lobbyMsg" class="small"></p>
+    <button class="btn sec" id="btnLobbyBack">Volver</button>
+  </div>
+</div>
+
+<!-- Fin de partido -->
+<div class="overlay hidden" id="doneScreen">
+  <div class="card">
+    <div class="kicker" id="dnKicker">Nivel 1</div>
+    <h2 id="dnTitle">¡Ganaste! 🎉</h2>
+    <div class="niv-estrellas" id="dnStars"></div>
+    <table class="res" id="dnTable"></table>
+    <p id="dnNote" class="small"></p>
+    <button class="btn" id="btnNext">Siguiente nivel →</button>
+    <button class="btn sec" id="btnBack">Ver niveles</button>
+  </div>
+</div>
+
+<script src="../../comun/niveles.js"></script>
+<script>
+(() => {
+  'use strict';
+  const canvas = document.getElementById('c');
+  const ctx = canvas.getContext('2d');
+  const $ = id => document.getElementById(id);
+
+  // ---------- Mundo (metros) ----------
+  const FW = 2.4, FL = 4.4;              // cancha
+  const RT = 0.07, RJ = 0.035;           // radio tejo / tejín
+  const THROW_Z = 0.25, THROW_H = 0.5;
+  const G = 9.8, MU = 0.75;
+  const TEJOS_POR_JUGADOR = 3;
+  const PCOL = [
+    { main: '#e53935', dark: '#8e1414', name: 'rojo' },
+    { main: '#1e63d6', dark: '#0b2a6e', name: 'azul' },
+  ];
+
+  // ---------- Niveles (contra la máquina) ----------
+  const RIVALES = ['Novato', 'Aprendiz', 'Playero', 'Veraneante', 'Guardavidas', 'Pescador', 'Campeón del balneario', 'Leyenda de la costa'];
+  function levelConfig(n) {
+    return {
+      n,
+      target: n <= 2 ? 7 : n <= 5 ? 9 : n <= 7 ? 12 : 15,
+      tejinZ: n <= 1 ? [2.4, 2.9] : n <= 3 ? [2.7, 3.4] : n <= 6 ? [3.0, 3.8] : [3.3, 4.0],
+      guide: n <= 2,
+      wind: n < 4 ? 0 : n < 6 ? 0.5 : Math.min(1.4, 0.7 + (n - 6) * 0.12),
+      windChanges: n >= 6,
+      rocks: n < 5 ? 0 : Math.min(5, 2 + Math.floor((n - 5) / 2)),
+      ai: {
+        sp: n === 1 ? 0.085 : n === 2 ? 0.065 : n === 3 ? 0.05 : n === 4 ? 0.042 : n === 5 ? 0.036 : n === 6 ? 0.03 : Math.max(0.012, 0.026 - (n - 7) * 0.004),
+        sa: n === 1 ? 0.07 : n === 2 ? 0.05 : n === 3 ? 0.04 : n === 4 ? 0.033 : n === 5 ? 0.028 : n === 6 ? 0.024 : Math.max(0.01, 0.02 - (n - 7) * 0.003),
+        windSense: Math.min(1, 0.4 + n * 0.08),
+        knock: n >= 5,
+      },
+      rival: RIVALES[Math.min(RIVALES.length - 1, n - 1)] + (n > RIVALES.length ? ` ${n - RIVALES.length + 1}` : ''),
+    };
+  }
+  const VS_CONFIG = target => ({ target, tejinZ: [2.9, 3.9], guide: false, wind: 0.6, windChanges: false, rocks: 0 });
+
+  function levelNews(n) {
+    const c = levelConfig(n), p = n > 1 ? levelConfig(n - 1) : null;
+    const it = [];
+    if (n === 1) {
+      it.push(['🟡', 'El <b>tejín</b> es el disquito amarillo. Arrimá tus tejos rojos lo más que puedas.']);
+      it.push(['👆', 'Deslizá hacia arriba y soltá. La cruz punteada te muestra dónde va a caer (sólo en los primeros niveles).']);
+      it.push(['🔁', `Cada uno tira ${TEJOS_POR_JUGADOR} tejos por ronda, intercalados.`]);
+    } else {
+      it.push(['🤖', `Rival nuevo: <b>${c.rival}</b>, más preciso.`]);
+      if (c.target > p.target) it.push(['🏁', `El partido ahora es a <b>${c.target}</b>.`]);
+      if (c.tejinZ[0] > p.tejinZ[0]) it.push(['📏', 'El tejín queda <b>más lejos</b>.']);
+      if (p.guide && !c.guide) it.push(['🙈', 'Ya no está la guía: a ojo.']);
+      if (c.wind && !p.wind) it.push(['💨', '<b>Viento</b> de costado: mirá la flecha arriba.']);
+      else if (c.windChanges && !p.windChanges) it.push(['🌬️', 'El viento <b>cambia en cada tiro</b>.']);
+      else if (c.wind > p.wind) it.push(['💨', 'Más viento.']);
+      if (c.rocks && !p.rocks) it.push(['🪨', '<b>Piedras</b> en la arena: si pegás, rebota.']);
+      else if (c.rocks > p.rocks) it.push(['🪨', 'Más piedras.']);
+      if (c.ai.knock && !p.ai.knock) it.push(['💥', 'La máquina ahora también intenta <b>sacarte</b> tus tejos.']);
+    }
+    it.push(['🏁', `Partido a ${c.target} puntos.`]);
+    return it;
+  }
+
+  // ---------- Estado ----------
+  let W = 0, H = 0, DPR = 1, K = 100, OX = 0, OY = 0;
+  let mode = null;                 // 'cpu' | 'local' | 'online'
+  let cfg = levelConfig(1), level = 1;
+  let names = ['Vos', 'Máquina'];
+  let scores = [0, 0];
+  let tejin = null, tejos = [], rocks = [];
+  let wind = 0;
+  let round = 0, starter = 0, order = [], throwIdx = 0;
+  let phase = 'idle';              // idle | aim | flying | waitRemote | roundEnd | over
+  let current = null;              // tejo en juego
+  let aim = null, cpuAim = null;
+  let banner = null;               // { title, sub, t }
+  let measure = null;
+  let matchStats = { covers: [0, 0] };
+  let particles = [];
+  let lastT = 0;
+  let me = 0;                      // índice del jugador local (online)
+  let net = null, isHost = false;
+  let pendingSettle = null, rematch = { me: false, them: false };
+  let token = 0;
+  const later = (fn, ms) => { const tk = token; setTimeout(() => { if (tk === token) fn(); }, ms); };
+
+  const store = {
+    get(k, d) { try { const v = localStorage.getItem('tejo.' + k); return v == null ? d : JSON.parse(v); } catch (_) { return d; } },
+    set(k, v) { try { localStorage.setItem('tejo.' + k, JSON.stringify(v)); } catch (_) {} },
+  };
+
+  // ---------- Pantalla ----------
+  function resize() {
+    DPR = Math.min(window.devicePixelRatio || 1, 2.5);
+    W = window.innerWidth; H = window.innerHeight;
+    canvas.width = Math.round(W * DPR); canvas.height = Math.round(H * DPR);
+    ctx.setTransform(DPR, 0, 0, DPR, 0, 0);
+    const top = 96, bottom = 70;
+    K = Math.min((W * 0.94) / FW, (H - top - bottom) / FL);
+    OX = W / 2;
+    OY = top + FL * K + Math.max(0, (H - top - bottom - FL * K) * 0.35);
+    sandPattern = null;
+  }
+  const sx = x => OX + x * K;
+  const sy = z => OY - z * K;
+  window.addEventListener('resize', resize);
+
+  // ---------- Utilidades ----------
+  const rand = (a, b) => a + Math.random() * (b - a);
+  function gauss() { let u = 0, v = 0; while (!u) u = Math.random(); while (!v) v = Math.random(); return Math.sqrt(-2 * Math.log(u)) * Math.cos(2 * Math.PI * v); }
+  const d2 = (a, b) => { const dx = a.x - b.x, dz = a.z - b.z; return dx * dx + dz * dz; };
+  function vibrate(p) { try { navigator.vibrate && navigator.vibrate(p); } catch (_) {} }
+
+  // ---------- Tiro ----------
+  function throwVel(p, ang) {
+    const vh = 0.9 + p * 3.4, vy = 2.3 + p * 1.3;
+    return { vx: vh * Math.sin(ang), vz: vh * Math.cos(ang), vy };
+  }
+
+  function launchParams(a) {
+    const dx = a.x - a.sx, dy = a.y - a.sy;
+    const pull = Math.max(0, -dy);
+    const p = Math.min(1, pull / (H * 0.42));
+    const ang = Math.max(-0.35, Math.min(0.35, Math.atan2(dx, Math.max(pull, 20)) * 0.5));
+    return { p, ang };
+  }
+
+  // Simulación sin choques (para la guía y para la máquina)
+  function predict(p, ang, w) {
+    const v = throwVel(p, ang);
+    let x = 0, z = THROW_Z, h = THROW_H, vx = v.vx, vz = v.vz, vy = v.vy;
+    const dt = 1 / 240;
+    let land = null;
+    for (let i = 0; i < 2000; i++) {
+      vy -= G * dt; vx += w * dt;
+      x += vx * dt; z += vz * dt; h += vy * dt;
+      if (h <= 0) { land = { x, z }; break; }
+    }
+    if (!land) return null;
+    const sp = Math.hypot(vx, vz) * 0.45, s = sp * sp / (2 * MU * G);
+    const ux = vx / Math.hypot(vx, vz), uz = vz / Math.hypot(vx, vz);
+    return { land, end: { x: land.x + ux * s, z: land.z + uz * s } };
+  }
+
+  function newTejo(owner) {
+    return { owner, x: 0, z: THROW_Z, h: THROW_H, vx: 0, vz: 0, vy: 0, state: 'hand', cover: false, out: false };
+  }
+
+  function doThrow(p, ang) {
+    const owner = order[throwIdx];
+    const t = newTejo(owner);
+    Object.assign(t, throwVel(p, ang), { state: 'air' });
+    tejos.push(t);
+    current = t;
+    phase = 'flying';
+    aim = null; cpuAim = null;
+    updateHud();
+  }
+
+  // ---------- Física ----------
+  function physics(dt) {
+    // tejo en el aire
+    for (const t of tejos) {
+      if (t.state !== 'air') continue;
+      t.vy -= G * dt; t.vx += wind * dt;
+      t.x += t.vx * dt; t.z += t.vz * dt; t.h += t.vy * dt;
+      if (t.h <= 0) land(t);
+    }
+    // deslizamiento
+    const movers = [tejin, ...tejos.filter(t => t.state === 'slide' || t.state === 'rest')];
+    for (const o of movers) {
+      if (!o || o.out) continue;
+      const sp = Math.hypot(o.vx, o.vz);
+      if (sp > 0) {
+        const ns = Math.max(0, sp - MU * G * dt);
+        o.vx *= ns / sp; o.vz *= ns / sp;
+        o.x += o.vx * dt; o.z += o.vz * dt;
+      }
+    }
+    // choques
+    const objs = movers.filter(o => o && !o.out);
+    for (let i = 0; i < objs.length; i++) {
+      for (let j = i + 1; j < objs.length; j++) {
+        const a = objs[i], b = objs[j];
+        if ((a === tejin && b.cover) || (b === tejin && a.cover)) continue;
+        const ra = a === tejin ? RJ : RT, rb = b === tejin ? RJ : RT;
+        const dx = b.x - a.x, dz = b.z - a.z, d = Math.hypot(dx, dz), min = ra + rb;
+        if (d < min && d > 1e-6) {
+          const nx = dx / d, nz = dz / d;
+          const ma = a === tejin ? 0.35 : 1, mb = b === tejin ? 0.35 : 1;
+          const ov = min - d;
+          a.x -= nx * ov * mb / (ma + mb); a.z -= nz * ov * mb / (ma + mb);
+          b.x += nx * ov * ma / (ma + mb); b.z += nz * ov * ma / (ma + mb);
+          const rel = (b.vx - a.vx) * nx + (b.vz - a.vz) * nz;
+          if (rel < 0) {
+            const j2 = -(1 + 0.55) * rel / (1 / ma + 1 / mb);
+            a.vx -= j2 * nx / ma; a.vz -= j2 * nz / ma;
+            b.vx += j2 * nx / mb; b.vz += j2 * nz / mb;
+            if (-rel > 0.3) { vibrate(10); sandPuff(a.x + nx * ra, a.z + nz * ra, 4); }
+          }
+          if (a !== tejin) a.state = 'slide';
+          if (b !== tejin) b.state = 'slide';
+          if (a.cover && Math.hypot(a.x - tejin.x, a.z - tejin.z) > RT * 0.9) a.cover = false;
+          if (b.cover && Math.hypot(b.x - tejin.x, b.z - tejin.z) > RT * 0.9) b.cover = false;
+        }
+      }
+      // piedras
+      const o = objs[i], r = o === tejin ? RJ : RT;
+      for (const k of rocks) {
+        const dx = o.x - k.x, dz = o.z - k.z, d = Math.hypot(dx, dz), min = r + k.r;
+        if (d < min && d > 1e-6) {
+          const nx = dx / d, nz = dz / d;
+          o.x = k.x + nx * min; o.z = k.z + nz * min;
+          const vn = o.vx * nx + o.vz * nz;
+          if (vn < 0) { o.vx -= 1.6 * vn * nx; o.vz -= 1.6 * vn * nz; }
+        }
+      }
+    }
+    // límites
+    for (const o of objs) {
+      if (o === tejin) {
+        const L = -FW / 2 + RJ, R = FW / 2 - RJ;
+        if (o.x < L) { o.x = L; o.vx = Math.abs(o.vx) * 0.4; }
+        if (o.x > R) { o.x = R; o.vx = -Math.abs(o.vx) * 0.4; }
+        if (o.z > FL - RJ) { o.z = FL - RJ; o.vz = -Math.abs(o.vz) * 0.4; }
+        if (o.z < 1) { o.z = 1; o.vz = Math.abs(o.vz) * 0.4; }
+        continue;
+      }
+      if (Math.abs(o.x) > FW / 2 + RT || o.z > FL + RT || o.z < -RT) { o.out = true; o.state = 'rest'; o.vx = o.vz = 0; }
+    }
+    for (const t of tejos) if (t.state === 'slide' && Math.hypot(t.vx, t.vz) < 0.002) { t.state = 'rest'; t.vx = t.vz = 0; }
+  }
+
+  function land(t) {
+    t.h = 0;
+    sandPuff(t.x, t.z, 10);
+    vibrate(15);
+    if (Math.abs(t.x) > FW / 2 || t.z > FL || t.z < 0) {
+      t.out = true; t.state = 'rest'; t.vx = t.vz = 0; return;
+    }
+    // ¿cayó sobre el tejín?
+    if (Math.hypot(t.x - tejin.x, t.z - tejin.z) < RT * 0.75) {
+      t.cover = true; t.state = 'rest'; t.vx = t.vz = 0; t.vy = 0;
+      t.x = tejin.x + (t.x - tejin.x) * 0.5; t.z = tejin.z + (t.z - tejin.z) * 0.5;
+      flashText('¡TEJO!', PCOL[t.owner].main);
+      vibrate([40, 40, 80]);
+      return;
+    }
+    // ¿cayó sobre una piedra?
+    for (const k of rocks) {
+      if (Math.hypot(t.x - k.x, t.z - k.z) < k.r + RT * 0.3) {
+        const a = rand(0, Math.PI * 2), s = Math.hypot(t.vx, t.vz) * 0.5;
+        t.vx = Math.cos(a) * s; t.vz = Math.abs(Math.sin(a)) * s * (Math.random() < 0.5 ? 1 : -1);
+        t.state = 'slide'; t.vy = 0;
+        flashText('¡Piedra!', '#fff');
+        return;
+      }
+    }
+    t.vx *= 0.45; t.vz *= 0.45; t.vy = 0;
+    t.state = 'slide';
+  }
+
+  function settled() {
+    if (tejos.some(t => t.state === 'air' || t.state === 'slide')) return false;
+    if (Math.hypot(tejin.vx, tejin.vz) > 0.002) return false;
+    tejin.vx = tejin.vz = 0;
+    return true;
+  }
+
+  // ---------- Rondas ----------
+  function startMatch() {
+    token++;
+    scores = [0, 0]; round = 0; matchStats = { covers: [0, 0] };
+    starter = Math.random() < 0.5 ? 0 : 1;
+    if (mode === 'cpu') starter = 0;
+    $('hud').style.display = 'flex';
+    $('btnMenu').style.display = 'block';
+    updateHud();
+  }
+
+  function genRound() {
+    const z = rand(cfg.tejinZ[0], cfg.tejinZ[1]);
+    const r = { tejin: { x: rand(-0.6, 0.6), z }, wind: 0, rocks: [] };
+    if (cfg.wind) r.wind = (Math.random() < 0.5 ? -1 : 1) * cfg.wind * rand(0.6, 1);
+    for (let i = 0; i < (cfg.rocks || 0); i++) {
+      let k, tries = 0;
+      do {
+        k = { x: rand(-0.95, 0.95), z: rand(1.2, FL - 0.3), r: rand(0.06, 0.1) };
+        tries++;
+      } while (tries < 50 && (Math.hypot(k.x - r.tejin.x, k.z - r.tejin.z) < 0.35 || r.rocks.some(o => Math.hypot(o.x - k.x, o.z - k.z) < 0.35)));
+      r.rocks.push(k);
+    }
+    return r;
+  }
+
+  function startRound(data) {
+    round++;
+    tejin = { x: data.tejin.x, z: data.tejin.z, vx: 0, vz: 0 };
+    wind = data.wind; rocks = data.rocks || [];
+    starter = data.starter;
+    tejos = []; current = null; measure = null;
+    order = [];
+    for (let i = 0; i < TEJOS_POR_JUGADOR * 2; i++) order.push((starter + i) % 2);
+    throwIdx = 0;
+    showBanner(`Ronda ${round}`, `Empieza ${names[starter]}`);
+    later(nextTurn, 900);
+    updateHud();
+  }
+
+  function hostStartRound() {
+    const data = genRound();
+    data.starter = starter;
+    if (mode === 'online') send({ t: 'round', data });
+    startRound(data);
+  }
+
+  function nextTurn() {
+    if (phase === 'over' || phase === 'flying' || phase === 'waitSettle') return;
+    if (throwIdx >= order.length) { endRound(); return; }
+    const who = order[throwIdx];
+    if (cfg.windChanges && throwIdx > 0 && mode === 'cpu') wind = (Math.random() < 0.5 ? -1 : 1) * cfg.wind * rand(0.5, 1);
+    if (mode === 'cpu' && who === 1) { phase = 'cpu'; later(cpuThrow, 700); }
+    else if (mode === 'online' && who !== me) phase = 'waitRemote';
+    else phase = 'aim';
+    updateHud();
+  }
+
+  function afterSettle() {
+    current = null;
+    if (mode === 'online') {
+      const thrower = order[throwIdx];
+      if (thrower === me) send({ t: 'settle', idx: throwIdx, state: snapshot() });
+      else {
+        if (!pendingSettle || pendingSettle.idx !== throwIdx) { phase = 'waitSettle'; return; }
+        applySnapshot(pendingSettle.state); pendingSettle = null;
+      }
+    }
+    finishThrow();
+  }
+
+  function finishThrow() {
+    const last = tejos[tejos.length - 1];
+    if (last && last.cover) matchStats.covers[last.owner]++;
+    throwIdx++;
+    phase = 'idle';
+    nextTurn();
+  }
+
+  function scoreRound() {
+    const best = [Infinity, Infinity];
+    const list = tejos.filter(t => !t.out).map(t => ({ t, dd: t.cover ? 0 : d2(t, tejin) }));
+    for (const o of list) best[o.t.owner] = Math.min(best[o.t.owner], o.dd);
+    if (best[0] === best[1]) return { winner: -1, pts: 0, items: list };
+    const w = best[0] < best[1] ? 0 : 1, other = best[1 - w];
+    let pts = 0;
+    for (const o of list) if (o.t.owner === w && o.dd < other) pts += o.t.cover ? 3 : 1;
+    return { winner: w, pts, items: list };
+  }
+
+  function endRound() {
+    if (mode === 'online' && !isHost) { phase = 'roundEnd'; return; }  // espera el resultado del anfitrión
+    const r = scoreRound();
+    const res = { winner: r.winner, pts: r.pts };
+    if (mode === 'online') send({ t: 'roundEnd', res, scores: [scores[0] + (r.winner === 0 ? r.pts : 0), scores[1] + (r.winner === 1 ? r.pts : 0)] });
+    applyRoundEnd(res);
+  }
+
+  function applyRoundEnd(res) {
+    phase = 'roundEnd';
+    if (res.winner >= 0) scores[res.winner] += res.pts;
+    measure = { t: 0, winner: res.winner };
+    const title = res.winner < 0 ? 'Empate en la ronda' : `${names[res.winner]} ${res.winner === 0 && mode === 'cpu' ? 'sumás' : 'suma'} ${res.pts}`;
+    showBanner(title, `${names[0]} ${scores[0]} – ${scores[1]} ${names[1]}`, 3);
+    banner.low = true;
+    if (res.winner >= 0) starter = res.winner; else starter = 1 - starter;
+    updateHud();
+    later(() => {
+      if (phase === 'over') return;
+      if (scores[0] >= cfg.target || scores[1] >= cfg.target) { endMatch(); return; }
+      if (mode !== 'online' || isHost) hostStartRound();
+    }, 3200);
+  }
+
+  // ---------- Máquina ----------
+  function solveFor(target, w) {
+    let ang = Math.atan2(target.x, target.z - THROW_Z), p = 0.6;
+    for (let it = 0; it < 6; it++) {
+      let lo = 0, hi = 1;
+      for (let k = 0; k < 18; k++) {
+        p = (lo + hi) / 2;
+        const r = predict(p, ang, w);
+        if (!r || r.end.z > target.z) hi = p; else lo = p;
+      }
+      const r = predict(p, ang, w);
+      if (!r) break;
+      ang += Math.atan2(target.x - r.end.x, target.z - THROW_Z) * 0.9;
+      ang = Math.max(-0.35, Math.min(0.35, ang));
+    }
+    return { p, ang };
+  }
+
+  function cpuThrow() {
+    if (phase !== 'cpu') return;
+    const ai = cfg.ai;
+    let target = { x: tejin.x, z: tejin.z };
+    // ¿conviene sacar un tejo del rival?
+    if (ai.knock) {
+      const mine = tejos.filter(t => t.owner === 1 && !t.out).map(t => d2(t, tejin));
+      const theirs = tejos.filter(t => t.owner === 0 && !t.out).sort((a, b) => d2(a, tejin) - d2(b, tejin));
+      const myBest = mine.length ? Math.min(...mine) : Infinity;
+      if (theirs.length && d2(theirs[0], tejin) < myBest && Math.sqrt(d2(theirs[0], tejin)) < 0.16 && Math.random() < 0.55) {
+        const t = theirs[0];
+        target = { x: t.x - (tejin.x - t.x) * 0.3, z: t.z + 0.05 };
+      }
+    }
+    const sol = solveFor(target, wind * ai.windSense);
+    const p = Math.max(0, Math.min(1, sol.p + gauss() * ai.sp));
+    const ang = sol.ang + gauss() * ai.sa;
+    // animación de apuntar
+    cpuAim = { p: 0, ang, target: p, t: 0 };
+    const t0 = performance.now();
+    const anim = () => {
+      if (phase !== 'cpu' || !cpuAim) return;
+      const k = Math.min(1, (performance.now() - t0) / 650);
+      cpuAim.p = p * k;
+      if (k < 1) requestAnimationFrame(anim);
+      else later(() => { if (phase === 'cpu') doThrow(p, ang); }, 120);
+    };
+    anim();
+  }
+
+  // ---------- Fin del partido ----------
+  function endMatch() {
+    phase = 'over';
+    const winner = scores[0] > scores[1] ? 0 : 1;
+    $('btnMenu').style.display = 'none';
+    $('dnTable').innerHTML = `
+      <tr><td><span class="dot" style="background:${PCOL[0].main}"></span>${esc(names[0])}</td><td>${scores[0]}</td></tr>
+      <tr><td><span class="dot" style="background:${PCOL[1].main}"></span>${esc(names[1])}</td><td>${scores[1]}</td></tr>
+      <tr><td>Rondas jugadas</td><td>${round}</td></tr>
+      <tr><td>¡Tejos! arriba del tejín</td><td>${matchStats.covers[0]} – ${matchStats.covers[1]}</td></tr>`;
+    $('dnStars').innerHTML = ''; $('dnStars').style.display = 'none';
+    $('btnNext').style.display = ''; $('btnBack').style.display = '';
+
+    if (mode === 'cpu') {
+      $('dnKicker').textContent = `Nivel ${level} · vs ${cfg.rival}`;
+      if (winner === 0) {
+        const stars = 1 + (scores[1] <= cfg.target / 2 ? 1 : 0) + (matchStats.covers[0] > 0 ? 1 : 0);
+        niveles.completar(level, stars);
+        $('dnStars').innerHTML = Niveles.estrellasHTML(stars); $('dnStars').style.display = '';
+        $('dnTitle').textContent = '¡Ganaste! 🎉';
+        $('dnNote').textContent = stars < 3 ? 'Estrellas: ganar · dejar al rival en la mitad o menos · meter al menos un ¡Tejo!' : '¡Partido perfecto!';
+        $('btnNext').textContent = 'Siguiente nivel →'; $('btnNext').dataset.mode = 'next';
+        store.set('save', level + 1);
+        const wins = store.get('wins', 0) + 1; store.set('wins', wins);
+      } else {
+        $('dnTitle').textContent = 'Perdiste esta vez 😅';
+        $('dnNote').textContent = 'Ganale para pasar al siguiente nivel.';
+        $('btnNext').textContent = 'Revancha'; $('btnNext').dataset.mode = 'retry';
+      }
+      $('btnBack').textContent = 'Ver niveles';
+    } else if (mode === 'local') {
+      $('dnKicker').textContent = '2 en este celular';
+      $('dnTitle').textContent = `¡Ganó ${names[winner]}! 🏆`;
+      $('dnNote').textContent = '';
+      $('btnNext').textContent = 'Otro partido'; $('btnNext').dataset.mode = 'local';
+      $('btnBack').textContent = 'Menú';
+    } else {
+      $('dnKicker').textContent = 'Desafío en vivo';
+      $('dnTitle').textContent = winner === me ? '¡Ganaste! 🏆' : `Ganó ${names[winner]}`;
+      if (winner === me) store.set('onlineWins', store.get('onlineWins', 0) + 1);
+      $('dnNote').textContent = '';
+      rematch = { me: false, them: false };
+      $('btnNext').textContent = 'Revancha'; $('btnNext').dataset.mode = 'rematch'; $('btnNext').disabled = false;
+      $('btnBack').textContent = 'Salir';
+    }
+    setTimeout(() => $('doneScreen').classList.remove('hidden'), 900);
+  }
+
+  // ---------- Red (desafío en vivo) ----------
+  const CODE_CHARS = 'ABCDEFGHJKMNPQRSTUVWXYZ23456789';
+  const newCode = () => Array.from({ length: 5 }, () => CODE_CHARS[Math.floor(Math.random() * CODE_CHARS.length)]).join('');
+  const PREFIX = 'desafio-tejo-';
+  const useLocalNet = new URLSearchParams(location.search).get('red') === 'local';
+
+  function loadPeerJS() {
+    return new Promise((res, rej) => {
+      if (window.Peer) return res();
+      const s = document.createElement('script');
+      s.src = 'https://unpkg.com/peerjs@1.5.4/dist/peerjs.min.js';
+      s.onload = () => res(); s.onerror = () => rej(new Error('No se pudo cargar la conexión. Revisá internet.'));
+      document.head.appendChild(s);
+    });
+  }
+
+  // Transporte de prueba entre pestañas del mismo navegador (?red=local)
+  function localTransport(code, host) {
+    const ch = new BroadcastChannel('tejo-' + code);
+    const id = Math.random().toString(36).slice(2);
+    const h = { onopen: null, onmsg: null, onclose: null, peerOpen: false };
+    ch.onmessage = e => {
+      const m = e.data; if (m.from === id) return;
+      if (m.k === 'join' && host && !h.peerOpen) { h.peerOpen = true; ch.postMessage({ k: 'ok', from: id }); h.onopen && h.onopen(); }
+      else if (m.k === 'ok' && !host && !h.peerOpen) { h.peerOpen = true; h.onopen && h.onopen(); }
+      else if (m.k === 'msg') h.onmsg && h.onmsg(m.d);
+      else if (m.k === 'bye') h.onclose && h.onclose();
+    };
+    if (!host) { const ping = () => { if (!h.peerOpen) { ch.postMessage({ k: 'join', from: id }); setTimeout(ping, 400); } }; ping(); }
+    h.send = d => ch.postMessage({ k: 'msg', d, from: id });
+    h.close = () => { try { ch.postMessage({ k: 'bye', from: id }); ch.close(); } catch (_) {} };
+    return h;
+  }
+
+  function wrapConn(conn, peer) {
+    const h = { onopen: null, onmsg: null, onclose: null };
+    conn.on('open', () => h.onopen && h.onopen());
+    conn.on('data', d => h.onmsg && h.onmsg(d));
+    conn.on('close', () => h.onclose && h.onclose());
+    conn.on('error', () => h.onclose && h.onclose());
+    h.send = d => { try { conn.send(d); } catch (_) {} };
+    h.close = () => { try { conn.close(); peer && peer.destroy(); } catch (_) {} };
+    return h;
+  }
+
+  async function createRoom() {
+    const name = ($('inName').value.trim() || 'Jugador 1').slice(0, 14);
+    store.set('name', name);
+    const target = +document.querySelector('#segTarget .on').dataset.v;
+    lobbyMsg('');
+    $('lobbyMain').style.display = 'none'; $('lobbyWait').style.display = '';
+    let code = newCode();
+    $('myCode').textContent = code;
+    const onReady = h => {
+      net = h; isHost = true; me = 0;
+      h.onopen = null;
+      h.onmsg = m => onNet(m);
+      h.onclose = onNetClose;
+    };
+    if (useLocalNet) {
+      pendingHost = { name, target };
+      onReady(localTransport(code, true));
+      return;
+    }
+    try { await loadPeerJS(); } catch (e) { lobbyMsg(e.message, true); backToLobbyMain(); return; }
+    const open = () => {
+      const peer = new Peer(PREFIX + code);
+      peer.on('open', () => { $('myCode').textContent = code; });
+      peer.on('connection', conn => {
+        if (net) { conn.close(); return; }
+        const h = wrapConn(conn, peer);
+        onReady(h);
+      });
+      peer.on('error', err => {
+        if (err.type === 'unavailable-id') { peer.destroy(); code = newCode(); $('myCode').textContent = code; open(); }
+        else lobbyMsg('Problema de conexión: ' + (err.type || err.message), true);
+      });
+      lobbyPeer = peer;
+    };
+    pendingHost = { name, target };
+    open();
+  }
+  let pendingHost = null, lobbyPeer = null;
+
+  async function joinRoom() {
+    const code = $('inCode').value.trim().toUpperCase();
+    if (code.length !== 5) { lobbyMsg('El código tiene 5 letras.', true); return; }
+    const name = ($('inName').value.trim() || 'Jugador 2').slice(0, 14);
+    store.set('name', name);
+    lobbyMsg('<span class="spin"></span>Conectando…');
+    const ready = h => {
+      net = h; isHost = false; me = 1;
+      h.onmsg = m => onNet(m);
+      h.onclose = onNetClose;
+      send({ t: 'hello', name });
+    };
+    if (useLocalNet) { const h = localTransport(code, false); h.onopen = () => ready(h); return; }
+    try { await loadPeerJS(); } catch (e) { lobbyMsg(e.message, true); return; }
+    const peer = new Peer();
+    lobbyPeer = peer;
+    peer.on('open', () => {
+      const conn = peer.connect(PREFIX + code, { reliable: true });
+      const h = wrapConn(conn, peer);
+      h.onopen = () => ready(h);
+    });
+    peer.on('error', err => {
+      lobbyMsg(err.type === 'peer-unavailable' ? 'No existe una sala con ese código.' : 'Problema de conexión: ' + (err.type || err.message), true);
+    });
+  }
+
+  function send(m) { if (net) net.send(m); }
+
+  function onNet(m) {
+    switch (m.t) {
+      case 'hello': {
+        if (!isHost) return;
+        names = [pendingHost.name, m.name || 'Rival'];
+        cfg = VS_CONFIG(pendingHost.target);
+        send({ t: 'start', names, target: pendingHost.target });
+        beginOnline();
+        break;
+      }
+      case 'start': {
+        names = m.names; cfg = VS_CONFIG(m.target);
+        beginOnline();
+        break;
+      }
+      case 'round': startRound(m.data); break;
+      case 'throw': {
+        if (order[throwIdx] === me || m.idx !== throwIdx) return;
+        doThrow(m.p, m.ang);
+        break;
+      }
+      case 'settle': {
+        pendingSettle = m;
+        if (phase === 'waitSettle' && m.idx === throwIdx) { applySnapshot(m.state); pendingSettle = null; finishThrow(); }
+        break;
+      }
+      case 'roundEnd': {
+        scores = [m.scores[0] - (m.res.winner === 0 ? m.res.pts : 0), m.scores[1] - (m.res.winner === 1 ? m.res.pts : 0)];
+        const go = () => applyRoundEnd(m.res);
+        if (phase === 'roundEnd') go(); else { const iv = setInterval(() => { if (phase === 'roundEnd') { clearInterval(iv); go(); } }, 100); }
+        break;
+      }
+      case 'rematch': {
+        rematch.them = true;
+        $('dnNote').textContent = `${names[1 - me]} quiere la revancha.`;
+        tryRematch();
+        break;
+      }
+      case 'bye': onNetClose(); break;
+    }
+  }
+
+  function tryRematch() {
+    if (!(rematch.me && rematch.them)) return;
+    $('doneScreen').classList.add('hidden');
+    rematch = { me: false, them: false };
+    phase = 'idle';
+    startMatch();
+    if (isHost) { starter = Math.random() < 0.5 ? 0 : 1; hostStartRound(); }
+  }
+
+  function beginOnline() {
+    mode = 'online';
+    $('lobbyScreen').classList.add('hidden');
+    $('netState').style.display = 'block';
+    $('netState').textContent = '🟢 En vivo';
+    phase = 'idle';
+    startMatch();
+    if (isHost) hostStartRound();
+  }
+
+  function onNetClose() {
+    if (!net) return;
+    net = null;
+    $('netState').textContent = '🔴 Sin conexión';
+    if (mode === 'online') {
+      phase = 'over';
+      $('dnKicker').textContent = 'Desafío en vivo';
+      $('dnTitle').textContent = 'Se cortó la conexión 📵';
+      $('dnStars').style.display = 'none';
+      $('dnTable').innerHTML = `<tr><td>${esc(names[0])}</td><td>${scores[0]}</td></tr><tr><td>${esc(names[1])}</td><td>${scores[1]}</td></tr>`;
+      $('dnNote').textContent = 'Tu rival salió o se perdió la señal.';
+      $('btnNext').style.display = 'none';
+      $('btnBack').textContent = 'Volver al menú';
+      $('doneScreen').classList.remove('hidden');
+    }
+  }
+
+  function snapshot() {
+    const r = v => Math.round(v * 1e5) / 1e5;
+    return {
+      tejin: { x: r(tejin.x), z: r(tejin.z) },
+      tejos: tejos.map(t => ({ o: t.owner, x: r(t.x), z: r(t.z), c: t.cover ? 1 : 0, out: t.out ? 1 : 0 })),
+    };
+  }
+  function applySnapshot(s) {
+    tejin.x = s.tejin.x; tejin.z = s.tejin.z; tejin.vx = tejin.vz = 0;
+    tejos = s.tejos.map(o => Object.assign(newTejo(o.o), { x: o.x, z: o.z, h: 0, state: 'rest', cover: !!o.c, out: !!o.out }));
+  }
+
+  function lobbyMsg(t, err) { $('lobbyMsg').innerHTML = t; $('lobbyMsg').classList.toggle('err', !!err); }
+  function backToLobbyMain() { $('lobbyMain').style.display = ''; $('lobbyWait').style.display = 'none'; }
+  function closeNet() {
+    if (net) { try { net.send({ t: 'bye' }); } catch (_) {} net.close(); net = null; }
+    if (lobbyPeer) { try { lobbyPeer.destroy(); } catch (_) {} lobbyPeer = null; }
+    $('netState').style.display = 'none';
+  }
+
+  // ---------- Entrada ----------
+  function canAim() {
+    if (phase !== 'aim') return false;
+    if (mode === 'online') return order[throwIdx] === me;
+    if (mode === 'cpu') return order[throwIdx] === 0;
+    return true;
+  }
+  canvas.addEventListener('pointerdown', e => {
+    if (!canAim()) return;
+    aim = { sx: e.clientX, sy: e.clientY, x: e.clientX, y: e.clientY };
+  });
+  window.addEventListener('pointermove', e => { if (aim) { aim.x = e.clientX; aim.y = e.clientY; } });
+  window.addEventListener('pointerup', () => {
+    if (!aim) return;
+    const lp = launchParams(aim);
+    aim = null;
+    if (lp.p < 0.04 || !canAim()) return;
+    if (mode === 'online') send({ t: 'throw', p: lp.p, ang: lp.ang, idx: throwIdx });
+    doThrow(lp.p, lp.ang);
+  });
+  window.addEventListener('pointercancel', () => { aim = null; });
+
+  // ---------- Dibujo ----------
+  let sandPattern = null;
+  function makeSand() {
+    const off = document.createElement('canvas');
+    off.width = off.height = 200;
+    const o = off.getContext('2d');
+    o.fillStyle = '#e6c891'; o.fillRect(0, 0, 200, 200);
+    const img = o.getImageData(0, 0, 200, 200);
+    for (let i = 0; i < img.data.length; i += 4) {
+      const n = (Math.random() - 0.5) * 26;
+      img.data[i] += n; img.data[i + 1] += n * 0.9; img.data[i + 2] += n * 0.7;
+    }
+    o.putImageData(img, 0, 0);
+    for (let i = 0; i < 40; i++) {
+      o.fillStyle = `rgba(150,110,60,${rand(0.05, 0.15)})`;
+      o.beginPath(); o.arc(rand(0, 200), rand(0, 200), rand(0.6, 1.6), 0, Math.PI * 2); o.fill();
+    }
+    sandPattern = ctx.createPattern(off, 'repeat');
+  }
+
+  function drawBeach(time) {
+    if (!sandPattern) makeSand();
+    ctx.fillStyle = sandPattern; ctx.fillRect(0, 0, W, H);
+    // mar arriba
+    const seaH = Math.max(40, sy(FL) - 18);
+    const g = ctx.createLinearGradient(0, 0, 0, seaH);
+    g.addColorStop(0, '#0f5d7a'); g.addColorStop(1, '#2aa6c4');
+    ctx.fillStyle = g;
+    ctx.beginPath(); ctx.moveTo(0, 0); ctx.lineTo(W, 0); ctx.lineTo(W, seaH);
+    for (let x = W; x >= 0; x -= 10) ctx.lineTo(x, seaH + Math.sin(x / 30 + time * 1.5) * 5);
+    ctx.closePath(); ctx.fill();
+    ctx.strokeStyle = 'rgba(255,255,255,.7)'; ctx.lineWidth = 3;
+    ctx.beginPath();
+    for (let x = 0; x <= W; x += 10) { const y = seaH + Math.sin(x / 30 + time * 1.5) * 5; x ? ctx.lineTo(x, y) : ctx.moveTo(x, y); }
+    ctx.stroke();
+    // arena mojada
+    ctx.fillStyle = 'rgba(160,120,70,.18)';
+    ctx.fillRect(0, seaH + 4, W, 14);
+
+    // cancha marcada en la arena
+    const x0 = sx(-FW / 2), x1 = sx(FW / 2), y0 = sy(0), y1 = sy(FL);
+    ctx.strokeStyle = 'rgba(120,80,40,.35)'; ctx.lineWidth = 3; ctx.setLineDash([2, 7]); ctx.lineCap = 'round';
+    ctx.strokeRect(x0, y1, x1 - x0, y0 - y1);
+    ctx.setLineDash([]);
+    // línea de tiro
+    ctx.strokeStyle = 'rgba(255,255,255,.75)'; ctx.lineWidth = 3;
+    ctx.beginPath(); ctx.moveTo(x0 + 6, sy(THROW_Z + 0.1)); ctx.lineTo(x1 - 6, sy(THROW_Z + 0.1)); ctx.stroke();
+  }
+
+  function drawRock(k) {
+    const x = sx(k.x), y = sy(k.z), r = k.r * K;
+    ctx.beginPath(); ctx.ellipse(x + r * 0.2, y + r * 0.25, r * 1.05, r * 0.95, 0, 0, Math.PI * 2);
+    ctx.fillStyle = 'rgba(0,0,0,.25)'; ctx.fill();
+    ctx.beginPath(); ctx.arc(x, y, r, 0, Math.PI * 2);
+    const g = ctx.createRadialGradient(x - r * 0.35, y - r * 0.35, r * 0.1, x, y, r);
+    g.addColorStop(0, '#bdb6aa'); g.addColorStop(1, '#5f5a52');
+    ctx.fillStyle = g; ctx.fill();
+  }
+
+  function drawTejin(time) {
+    if (!tejin) return;
+    const x = sx(tejin.x), y = sy(tejin.z), r = RJ * K;
+    const pulse = 0.5 + 0.5 * Math.sin(time * 4);
+    ctx.beginPath(); ctx.arc(x, y, r + 6 + pulse * 3, 0, Math.PI * 2);
+    ctx.strokeStyle = `rgba(255,214,64,${0.35 + pulse * 0.25})`; ctx.lineWidth = 2; ctx.stroke();
+    ctx.beginPath(); ctx.arc(x + 1, y + 1.5, r, 0, Math.PI * 2); ctx.fillStyle = 'rgba(0,0,0,.3)'; ctx.fill();
+    ctx.beginPath(); ctx.arc(x, y, r, 0, Math.PI * 2);
+    const g = ctx.createRadialGradient(x - r * 0.3, y - r * 0.3, 0, x, y, r);
+    g.addColorStop(0, '#fff6b0'); g.addColorStop(0.6, '#ffd23f'); g.addColorStop(1, '#b8860b');
+    ctx.fillStyle = g; ctx.fill();
+  }
+
+  function drawTejo(t) {
+    if (t.out && t.state === 'rest') { drawTejoAt(t, sx(t.x), sy(t.z), 1, 0.35); return; }
+    const x = sx(t.x), y = sy(t.z);
+    if (t.h > 0) {
+      // sombra en la arena
+      const s = 1 / (1 + t.h * 0.8);
+      ctx.beginPath(); ctx.ellipse(x, y, RT * K * s * 1.1, RT * K * s, 0, 0, Math.PI * 2);
+      ctx.fillStyle = `rgba(0,0,0,${0.3 * s})`; ctx.fill();
+      drawTejoAt(t, x, y - t.h * K * 0.55, 1 + t.h * 0.55, 1);
+    } else drawTejoAt(t, x, y, 1, 1);
+  }
+
+  function drawTejoAt(t, x, y, scale, alpha) {
+    const r = RT * K * scale, C = PCOL[t.owner];
+    ctx.save(); ctx.globalAlpha = alpha;
+    if (t.h <= 0) { ctx.beginPath(); ctx.arc(x + 1.5, y + 2, r, 0, Math.PI * 2); ctx.fillStyle = 'rgba(0,0,0,.3)'; ctx.fill(); }
+    ctx.beginPath(); ctx.arc(x, y, r, 0, Math.PI * 2);
+    const g = ctx.createRadialGradient(x - r * 0.4, y - r * 0.4, r * 0.05, x, y, r);
+    g.addColorStop(0, '#f4f6f8'); g.addColorStop(0.55, '#a9b0b8'); g.addColorStop(1, '#5c636b');
+    ctx.fillStyle = g; ctx.fill();
+    ctx.beginPath(); ctx.arc(x, y, r * 0.62, 0, Math.PI * 2);
+    ctx.fillStyle = C.main; ctx.fill();
+    ctx.lineWidth = 1; ctx.strokeStyle = C.dark; ctx.stroke();
+    ctx.beginPath(); ctx.arc(x - r * 0.18, y - r * 0.2, r * 0.22, 0, Math.PI * 2);
+    ctx.fillStyle = 'rgba(255,255,255,.35)'; ctx.fill();
+    if (t.cover) {
+      ctx.beginPath(); ctx.arc(x, y, r + 4, 0, Math.PI * 2);
+      ctx.strokeStyle = '#ffd23f'; ctx.lineWidth = 3; ctx.stroke();
+    }
+    ctx.restore();
+  }
+
+  function drawAim() {
+    let lp = null;
+    if (aim) lp = launchParams(aim);
+    else if (cpuAim) lp = { p: cpuAim.p, ang: cpuAim.ang };
+    if (!lp) return;
+    const who = order[throwIdx];
+    const x = sx(0), y = sy(THROW_Z);
+    ctx.save();
+    ctx.translate(x, y); ctx.rotate(lp.ang);
+    const len = 30 + lp.p * 90;
+    ctx.strokeStyle = `hsl(${120 - lp.p * 120}, 80%, 45%)`; ctx.lineWidth = 6; ctx.lineCap = 'round';
+    ctx.beginPath(); ctx.moveTo(0, -RT * K - 6); ctx.lineTo(0, -RT * K - 6 - len); ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(-9, -RT * K - len + 4); ctx.lineTo(0, -RT * K - 8 - len); ctx.lineTo(9, -RT * K - len + 4); ctx.stroke();
+    ctx.restore();
+    const bw = Math.min(220, W * 0.55), bx = (W - bw) / 2, by = H - Math.max(24, H * 0.035);
+    ctx.fillStyle = 'rgba(0,0,0,.35)'; ctx.fillRect(bx, by, bw, 10);
+    ctx.fillStyle = `hsl(${120 - lp.p * 120}, 80%, 45%)`; ctx.fillRect(bx, by, bw * lp.p, 10);
+    if (aim && cfg.guide && who === 0) {
+      const pr = predict(lp.p, lp.ang, wind);
+      if (pr) {
+        const lx = sx(pr.land.x), ly = sy(pr.land.z), ex = sx(pr.end.x), ey = sy(pr.end.z);
+        ctx.strokeStyle = 'rgba(255,255,255,.9)'; ctx.lineWidth = 2; ctx.setLineDash([4, 4]);
+        ctx.beginPath(); ctx.moveTo(x, y); ctx.lineTo(lx, ly); ctx.stroke(); ctx.setLineDash([]);
+        ctx.beginPath(); ctx.moveTo(lx - 6, ly - 6); ctx.lineTo(lx + 6, ly + 6); ctx.moveTo(lx + 6, ly - 6); ctx.lineTo(lx - 6, ly + 6); ctx.stroke();
+        ctx.beginPath(); ctx.arc(ex, ey, RT * K, 0, Math.PI * 2); ctx.setLineDash([3, 3]); ctx.stroke(); ctx.setLineDash([]);
+      }
+    }
+  }
+
+  function drawHandTejo() {
+    if (!(phase === 'aim' || phase === 'cpu' || phase === 'waitRemote')) return;
+    if (throwIdx >= order.length) return;
+    const who = order[throwIdx];
+    const t = { owner: who, h: 0, cover: false };
+    drawTejoAt(t, sx(0), sy(THROW_Z), 1.15, 1);
+    // tejos que quedan
+    const left = [0, 0];
+    for (let i = throwIdx; i < order.length; i++) left[order[i]]++;
+    for (let p = 0; p < 2; p++) {
+      for (let i = 0; i < left[p]; i++) {
+        const x = p === 0 ? sx(-FW / 2) + 18 + i * 22 : sx(FW / 2) - 18 - i * 22;
+        drawTejoAt({ owner: p, h: 0 }, x, sy(0) + 26, 0.75, p === who && i === 0 ? 0.4 : 1);
+      }
+    }
+  }
+
+  function drawMeasure(dt) {
+    if (!measure || !tejin) return;
+    measure.t += dt;
+    const k = Math.min(1, measure.t / 0.6);
+    const items = tejos.filter(t => !t.out).map(t => ({ t, d: Math.sqrt(d2(t, tejin)) })).sort((a, b) => a.d - b.d);
+    const best = [Infinity, Infinity];
+    items.forEach(o => { best[o.t.owner] = Math.min(best[o.t.owner], o.d); });
+    const tx = sx(tejin.x), ty = sy(tejin.z);
+    ctx.font = '700 12px system-ui, sans-serif'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+    items.forEach(o => {
+      const w = measure.winner;
+      const scoring = w >= 0 && o.t.owner === w && (o.t.cover || o.d < best[1 - w]);
+      const x = sx(o.t.x), y = sy(o.t.z);
+      ctx.strokeStyle = scoring ? 'rgba(46,160,90,.95)' : 'rgba(255,255,255,.6)';
+      ctx.lineWidth = scoring ? 3 : 1.5;
+      ctx.beginPath(); ctx.moveTo(tx, ty); ctx.lineTo(tx + (x - tx) * k, ty + (y - ty) * k); ctx.stroke();
+      const label = scoring || o.d === best[o.t.owner];
+      if (k >= 1 && label) {
+        const cm = o.t.cover ? '¡Tejo!' : `${Math.max(0, Math.round((o.d - RT - RJ) * 100))} cm`;
+        const len = Math.hypot(x - tx, y - ty) || 1;
+        const ux = (x - tx) / len, uy = (y - ty) / len;
+        const mx = x + ux * (RT * K + 16), my = y + uy * (RT * K + 12);
+        const tw = ctx.measureText(cm).width + 10;
+        ctx.fillStyle = scoring ? '#2e9d5b' : PCOL[o.t.owner].dark;
+        ctx.beginPath(); ctx.roundRect ? ctx.roundRect(mx - tw / 2, my - 9, tw, 18, 9) : ctx.rect(mx - tw / 2, my - 9, tw, 18); ctx.fill();
+        ctx.fillStyle = '#fff'; ctx.fillText(cm, mx, my);
+      }
+    });
+  }
+
+  function drawWind(time) {
+    if (!wind || !tejin) return;
+    const y = 72, cx = W / 2, dir = Math.sign(wind), w = 30 + Math.abs(wind) * 40;
+    ctx.save();
+    ctx.fillStyle = 'rgba(0,0,0,.35)';
+    ctx.beginPath(); ctx.roundRect ? ctx.roundRect(cx - w / 2 - 44, y - 14, w + 88, 28, 14) : ctx.rect(cx - w / 2 - 44, y - 14, w + 88, 28); ctx.fill();
+    ctx.font = '14px system-ui'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+    ctx.fillText('💨', cx - w / 2 - 26, y + 1);
+    ctx.strokeStyle = '#e6f6ff'; ctx.lineWidth = 3; ctx.lineCap = 'round';
+    ctx.beginPath(); ctx.moveTo(cx - w / 2 + 4, y); ctx.lineTo(cx + w / 2 + 4, y); ctx.stroke();
+    const tip = dir > 0 ? cx + w / 2 + 12 : cx - w / 2 - 4;
+    ctx.beginPath(); ctx.moveTo(tip - dir * 8, y - 6); ctx.lineTo(tip, y); ctx.lineTo(tip - dir * 8, y + 6); ctx.stroke();
+    ctx.restore();
+  }
+
+  function drawTurn() {
+    if (!(phase === 'aim' || phase === 'cpu' || phase === 'waitRemote' || phase === 'waitSettle')) return;
+    if (throwIdx >= order.length) return;
+    const who = order[throwIdx];
+    let txt;
+    if (mode === 'cpu') txt = who === 0 ? 'Te toca · deslizá hacia arriba' : `Tira ${names[1]}…`;
+    else if (mode === 'online') txt = who === me ? 'Te toca · deslizá hacia arriba' : `Tira ${names[who]}…`;
+    else txt = `Turno de ${names[who]} · deslizá hacia arriba`;
+    if (aim) return;
+    ctx.save();
+    ctx.font = '700 14px system-ui, sans-serif'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+    const tw = ctx.measureText(txt).width + 24, y = Math.min(H - 20, sy(0) + 56);
+    ctx.fillStyle = PCOL[who].main;
+    ctx.beginPath(); ctx.roundRect ? ctx.roundRect(W / 2 - tw / 2, y - 15, tw, 30, 15) : ctx.rect(W / 2 - tw / 2, y - 15, tw, 30); ctx.fill();
+    ctx.fillStyle = '#fff'; ctx.fillText(txt, W / 2, y);
+    ctx.restore();
+  }
+
+  function showBanner(title, sub, dur = 1.6) { banner = { title, sub, t: 0, dur }; }
+  let flashes = [];
+  function flashText(text, color) { flashes.push({ text, color, t: 0 }); }
+
+  function drawBanner(dt) {
+    if (banner) {
+      banner.t += dt;
+      const k = banner.t / banner.dur;
+      if (k >= 1) banner = null;
+      else {
+        const a = k < 0.12 ? k / 0.12 : k > 0.8 ? (1 - k) / 0.2 : 1;
+        ctx.save(); ctx.globalAlpha = a;
+        const y = banner.low ? Math.min(H - 120, sy(0.9)) : H * 0.42;
+        ctx.fillStyle = 'rgba(0,0,0,.55)'; ctx.fillRect(0, y - 44, W, 88);
+        ctx.fillStyle = '#fff'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+        ctx.font = `900 ${Math.min(34, W * 0.075)}px system-ui, sans-serif`; ctx.fillText(banner.title, W / 2, y - 10);
+        ctx.font = '600 15px system-ui, sans-serif'; ctx.fillText(banner.sub, W / 2, y + 22);
+        ctx.restore();
+      }
+    }
+    for (const f of flashes) {
+      f.t += dt; const k = f.t / 1.1; if (k >= 1) continue;
+      ctx.save(); ctx.globalAlpha = 1 - k;
+      ctx.font = `900 ${Math.min(48, W * 0.11)}px system-ui, sans-serif`; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+      ctx.lineWidth = 6; ctx.strokeStyle = 'rgba(0,0,0,.5)';
+      ctx.strokeText(f.text, W / 2, H * 0.3 - k * 30);
+      ctx.fillStyle = f.color; ctx.fillText(f.text, W / 2, H * 0.3 - k * 30);
+      ctx.restore();
+    }
+    flashes = flashes.filter(f => f.t < 1.1);
+  }
+
+  function sandPuff(x, z, n) {
+    for (let i = 0; i < n; i++) particles.push({ x: sx(x), y: sy(z), vx: rand(-60, 60), vy: rand(-70, -10), t: 0, life: rand(0.3, 0.6) });
+  }
+  function drawParticles(dt) {
+    for (const p of particles) {
+      p.t += dt; p.vy += 300 * dt; p.x += p.vx * dt; p.y += p.vy * dt;
+      ctx.fillStyle = `rgba(190,150,95,${1 - p.t / p.life})`;
+      ctx.fillRect(p.x - 2, p.y - 2, 4, 4);
+    }
+    particles = particles.filter(p => p.t < p.life);
+  }
+
+  function draw(dt, time) {
+    drawBeach(time);
+    rocks.forEach(drawRock);
+    drawTejin(time);
+    tejos.filter(t => t.h <= 0).forEach(drawTejo);
+    drawMeasure(dt);
+    tejos.filter(t => t.h > 0).forEach(drawTejo);
+    drawParticles(dt);
+    drawHandTejo();
+    drawAim();
+    drawTurn();
+    drawWind(time);
+    drawBanner(dt);
+  }
+
+  // ---------- Bucle ----------
+  function loop(t) {
+    const now = t / 1000;
+    let dt = lastT ? now - lastT : 0; lastT = now;
+    dt = Math.min(dt, 1 / 30);
+    if (tejin) {
+      const N = 6;
+      for (let i = 0; i < N; i++) physics(dt / N);
+      if (phase === 'flying' && settled()) afterSettle();
+    }
+    draw(dt, now);
+    requestAnimationFrame(loop);
+  }
+
+  // ---------- HUD ----------
+  function esc(s) { return String(s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c])); }
+  function updateHud() {
+    $('hudN0').textContent = names[0]; $('hudN1').textContent = names[1];
+    $('hudS0').textContent = scores[0]; $('hudS1').textContent = scores[1];
+    $('hudTarget').textContent = `a ${cfg.target}`;
+    const who = throwIdx < order.length ? order[throwIdx] : -1;
+    $('hudP0').classList.toggle('turn', who === 0 && phase !== 'roundEnd');
+    $('hudP1').classList.toggle('turn', who === 1 && phase !== 'roundEnd');
+  }
+
+  // ---------- Pantallas ----------
+  const niveles = Niveles.crear({
+    clave: 'tejo', contenedor: $('lvGrid'), minimoVisible: 12,
+    alElegir: n => startCpu(n),
+  });
+
+  function refreshStart() {
+    const save = store.get('save', 1);
+    const lv = Math.min(save, niveles.desbloqueado());
+    $('btnCpu').textContent = lv > 1 ? `Contra la máquina · nivel ${lv}` : 'Contra la máquina';
+    const w = store.get('wins', 0), ow = store.get('onlineWins', 0);
+    $('bestLine').textContent = w || ow ? `Partidos ganados: ${w} contra la máquina · ${ow} en vivo` : '';
+    niveles.render();
+  }
+
+  async function goFullscreen() {
+    const el = document.documentElement;
+    try { if (!document.fullscreenElement) { if (el.requestFullscreen) await el.requestFullscreen({ navigationUI: 'hide' }); else if (el.webkitRequestFullscreen) el.webkitRequestFullscreen(); } } catch (_) {}
+    try { if (screen.orientation && screen.orientation.lock) await screen.orientation.lock('portrait'); } catch (_) {}
+    try { if ('wakeLock' in navigator) await navigator.wakeLock.request('screen'); } catch (_) {}
+  }
+
+  function resetBoard() { tejin = null; tejos = []; rocks = []; wind = 0; order = []; throwIdx = 0; measure = null; banner = null; current = null; aim = null; cpuAim = null; }
+
+  function startCpu(n) {
+    goFullscreen();
+    mode = 'cpu'; level = n; cfg = levelConfig(n);
+    names = ['Vos', cfg.rival];
+    resetBoard();
+    $('startScreen').classList.add('hidden');
+    $('lvKicker').textContent = `Nivel ${n}`;
+    $('lvTitle').textContent = `Rival: ${cfg.rival}`;
+    $('lvNews').innerHTML = `<b class="t">${n === 1 ? 'Cómo se juega' : 'Novedades'}</b>` +
+      levelNews(n).map(([ic, t]) => `<div class="rule"><span class="ic">${ic}</span><span>${t}</span></div>`).join('');
+    $('levelScreen').classList.remove('hidden');
+  }
+
+  function startLocal() {
+    goFullscreen();
+    mode = 'local'; cfg = VS_CONFIG(9);
+    names = ['Jugador 1', 'Jugador 2'];
+    resetBoard();
+    $('startScreen').classList.add('hidden');
+    phase = 'idle';
+    startMatch(); hostStartRound();
+  }
+
+  function showMenu() {
+    token++;
+    phase = 'over';
+    closeNet();
+    mode = null;
+    resetBoard();
+    ['levelScreen', 'doneScreen', 'lobbyScreen'].forEach(id => $(id).classList.add('hidden'));
+    $('hud').style.display = 'none'; $('btnMenu').style.display = 'none'; $('netState').style.display = 'none';
+    refreshStart();
+    $('startScreen').classList.remove('hidden');
+  }
+
+  $('btnCpu').addEventListener('click', () => startCpu(Math.min(store.get('save', 1), niveles.desbloqueado())));
+  $('btnLocal').addEventListener('click', startLocal);
+  $('btnOnline').addEventListener('click', () => {
+    goFullscreen();
+    $('startScreen').classList.add('hidden');
+    $('inName').value = store.get('name', '');
+    backToLobbyMain(); lobbyMsg('');
+    $('lobbyScreen').classList.remove('hidden');
+  });
+  $('segTarget').addEventListener('click', e => {
+    const b = e.target.closest('button'); if (!b) return;
+    document.querySelectorAll('#segTarget button').forEach(x => x.classList.toggle('on', x === b));
+  });
+  $('btnCreate').addEventListener('click', createRoom);
+  $('btnJoin').addEventListener('click', joinRoom);
+  $('inCode').addEventListener('input', e => { e.target.value = e.target.value.toUpperCase().replace(/[^A-Z0-9]/g, ''); });
+  $('btnShare').addEventListener('click', async () => {
+    const code = $('myCode').textContent;
+    const url = location.href.split('?')[0].split('#')[0] + '#sala=' + code;
+    const text = `¡Te desafío al Tejo! Entrá a ${url} o poné el código ${code} en "Desafío en vivo".`;
+    try { if (navigator.share) await navigator.share({ title: 'Desafío de Tejo', text, url }); else { await navigator.clipboard.writeText(text); lobbyMsg('Invitación copiada.'); } } catch (_) {}
+  });
+  $('btnLobbyBack').addEventListener('click', showMenu);
+
+  $('btnGo').addEventListener('click', () => {
+    $('levelScreen').classList.add('hidden');
+    phase = 'idle';
+    startMatch(); hostStartRound();
+  });
+  $('btnNext').addEventListener('click', () => {
+    const m = $('btnNext').dataset.mode;
+    if (m === 'rematch') {
+      rematch.me = true; send({ t: 'rematch' });
+      $('btnNext').disabled = true; $('dnNote').textContent = `Esperando a ${names[1 - me]}…`;
+      tryRematch(); return;
+    }
+    $('doneScreen').classList.add('hidden');
+    if (m === 'next') startCpu(level + 1);
+    else if (m === 'retry') startCpu(level);
+    else if (m === 'local') startLocal();
+  });
+  $('btnBack').addEventListener('click', showMenu);
+  $('btnMenu').addEventListener('click', e => {
+    e.stopPropagation();
+    if (mode === 'online' && !confirmLeave()) return;
+    showMenu();
+  });
+  function confirmLeave() { return true; }
+
+  // Invitación por link: #sala=CODIGO
+  const m = location.hash.match(/sala=([A-Z0-9]{5})/i);
+  if (m) {
+    $('startScreen').classList.add('hidden');
+    $('inName').value = store.get('name', '');
+    $('inCode').value = m[1].toUpperCase();
+    backToLobbyMain();
+    lobbyMsg('Te invitaron a un desafío: poné tu nombre y tocá "Unirme".');
+    $('lobbyScreen').classList.remove('hidden');
+    history.replaceState(null, '', location.pathname + location.search);
+  }
+
+  resize();
+  refreshStart();
+  requestAnimationFrame(loop);
+
+  // Acceso para pruebas
+  window.__tejo = {
+    get s() { return { phase, throwIdx, order, scores, round, me, mode, tejos: tejos.length, current: !!current }; },
+    get tejin() { return tejin; }, get tejos() { return tejos; },
+    throwAt(x, z) { const s = solveFor({ x, z }, wind); if (mode === 'online') send({ t: 'throw', p: s.p, ang: s.ang, idx: throwIdx }); doThrow(s.p, s.ang); },
+    predict, solveFor,
+  };
+})();
+</script>
+</body>
+</html>

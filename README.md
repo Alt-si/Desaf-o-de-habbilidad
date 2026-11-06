@@ -6,6 +6,7 @@ Colección de juegos de habilidad para jugar desde el navegador del celular.
 
 | Juego | Carpeta | Descripción |
 |---|---|---|
+| Tejo | [`juegos/tejo`](juegos/tejo/) | Tejo de playa: tirar los tejos para que queden lo más cerca posible del tejín. Contra la máquina (por niveles), 2 jugadores en el mismo celular o desafío en vivo, cada uno en su celular. |
 | Latas | [`juegos/latas`](juegos/latas/) | Mesa tipo ping-pong con 6 latas en 2 filas de colores. Se lanza la pelotita deslizando el dedo: tiene que picar una sola vez y caer en una lata de su mismo color. |
 | Mesa de Hoyos | [`juegos/mesa-de-hoyos`](juegos/mesa-de-hoyos/) | Mesa a pantalla completa con 4 hoyos (2 blancos, 2 negros) y 4 bolas (2 blancas, 2 negras). Inclinando el celular se mueve la mesa: hay que embocar cada bola en el hoyo de su mismo color. |
 
@@ -74,6 +75,19 @@ Los sensores de movimiento del celular sólo funcionan en páginas servidas por 
 3. El sitio queda en `https://alt-si.github.io/Desaf-o-de-habbilidad/`.
 
 En iPhone, al tocar **Jugar** el navegador pide permiso para usar el movimiento: hay que aceptarlo.
+
+## Cómo jugar Tejo
+
+- Deslizá el dedo hacia arriba y soltá: más largo = más lejos; inclinado = apunta. Cada uno tira 3 tejos por ronda, intercalados.
+- Al final de la ronda, el que tiene el tejo más cerca del tejín suma **1 punto por cada tejo** suyo más cerca que el mejor del rival. Un tejo que cae **arriba del tejín** (¡Tejo!) vale **3**.
+- Los tejos chocan: se puede sacar un tejo del rival o mover el tejín.
+- Gana el primero que llega a los puntos del partido (7, 9, 12 o 15).
+
+**Modos**
+
+- **Contra la máquina**: por niveles. Cada nivel trae un rival más preciso y suma distancia, viento, viento cambiante y piedras; desde el nivel 5 la máquina también intenta sacarte los tejos. Estrellas: ganar · dejar al rival en la mitad de los puntos o menos · meter al menos un ¡Tejo!
+- **2 jugadores en este celu**: se pasan el teléfono.
+- **Desafío en vivo**: uno toca **Crear sala** y le pasa el código de 5 letras (o el link con **Compartir invitación**); el otro lo pone en **Unirme**. Cada uno juega desde su celular y ve los tiros del otro en el momento. Usa una conexión directa entre los dos teléfonos (WebRTC, con el servicio público gratuito de PeerJS para encontrarse), así que no hace falta un servidor propio. En algunas redes muy cerradas (ciertas redes de empresa o de datos móviles) la conexión directa puede no lograrse.
 
 ## Niveles
 
