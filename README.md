@@ -6,6 +6,7 @@ Colección de juegos de habilidad para jugar desde el navegador del celular.
 
 | Juego | Carpeta | Descripción |
 |---|---|---|
+| Latas | [`juegos/latas`](juegos/latas/) | Mesa tipo ping-pong con 6 latas en 2 filas de colores. Se lanza la pelotita deslizando el dedo: tiene que picar una sola vez y caer en una lata de su mismo color. |
 | Mesa de Hoyos | [`juegos/mesa-de-hoyos`](juegos/mesa-de-hoyos/) | Mesa a pantalla completa con 4 hoyos (2 blancos, 2 negros) y 4 bolas (2 blancas, 2 negras). Inclinando el celular se mueve la mesa: hay que embocar cada bola en el hoyo de su mismo color. |
 
 ## Cómo jugar Mesa de Hoyos
@@ -39,6 +40,30 @@ Colección de juegos de habilidad para jugar desde el navegador del celular.
 El progreso (nivel y puntaje) y el récord se guardan en el celular, así se puede continuar después.
 
 En compu se puede probar con las flechas / W A S D, o manteniendo apretado el mouse y arrastrando.
+
+## Cómo jugar Latas
+
+- Apoyá el dedo, deslizalo hacia arriba y soltá: cuanto más largo el arrastre, más fuerte el tiro; desviarlo a un costado apunta.
+- La pelotita tiene que **picar una sola vez** en la mesa y caer dentro de una lata de **su color**. Cada pelotita sale de un color al azar entre las latas que quedan.
+
+| Situación | Puntos |
+|---|---|
+| Un pique y lata correcta | +100 |
+| Lata de otro color | −50 |
+| Entra sin picar, o con más de un pique | −25 |
+| Pelotitas que sobran al terminar | +50 c/u |
+
+| Nivel | Novedad |
+|---|---|
+| 1 | Fila roja adelante, fila azul atrás; línea guía del recorrido; 12 pelotitas |
+| 2 | 10 pelotitas |
+| 3 | Colores intercalados; sin línea guía |
+| 4 | Colores mezclados al azar; 9 pelotitas |
+| 5 | Viento lateral |
+| 6 | Las latas se mueven de lado a lado |
+| 7+ | 8 pelotitas, viento que cambia en cada tiro, latas más rápidas; desde el 8 cada fila se mueve para un lado distinto |
+
+Si te quedás sin pelotitas, reintentás el nivel con el puntaje que tenías al empezarlo.
 
 ## Publicar con GitHub Pages
 
