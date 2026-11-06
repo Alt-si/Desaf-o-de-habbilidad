@@ -29,6 +29,11 @@
   #hudScore.plus { animation: plus .5s; }
   @keyframes minus { 30% { background: #c62828; transform: scale(1.15);} }
   @keyframes plus { 30% { background: #2e9d5b; transform: scale(1.15);} }
+  #btnMenu {
+    position: fixed; top: calc(max(10px, env(safe-area-inset-top)) + 42px); left: 12px; z-index: 2;
+    background: rgba(0,0,0,.45); color: #fff; border: 0; border-radius: 999px;
+    padding: 6px 12px; font-size: 13px; font-weight: 600; display: none;
+  }
   .overlay {
     position: fixed; inset: 0; z-index: 5; display: flex; align-items: center; justify-content: center;
     background: rgba(6, 12, 20, .8); backdrop-filter: blur(3px); -webkit-backdrop-filter: blur(3px);
@@ -73,6 +78,8 @@
   <span class="chip" id="hudBalls">🏓 12</span>
 </div>
 
+<button id="btnMenu">☰ Niveles</button>
+
 <div class="overlay" id="startScreen">
   <div class="card">
     <h1>Latas</h1>
@@ -84,7 +91,7 @@
       <div class="rule"><span class="ic">⚠️</span>Sin picar o con más de un pique: <b>−25</b></div>
     </div>
     <button class="btn" id="btnStart">Jugar</button>
-    <button class="btn sec" id="btnContinue" style="display:none"></button>
+    <div id="lvGrid"></div>
     <p class="small" id="bestLine"></p>
   </div>
 </div>
@@ -102,13 +109,15 @@
   <div class="card">
     <div class="kicker" id="dnKicker">Nivel 1 superado</div>
     <h2 id="dnTitle">¡Todas adentro! 🎉</h2>
+    <div class="niv-estrellas" id="dnStars"></div>
     <table class="res" id="dnTable"></table>
     <p id="dnBest" class="small"></p>
     <button class="btn" id="btnNext">Siguiente nivel →</button>
-    <button class="btn sec" id="btnRestart">Empezar de cero</button>
+    <button class="btn sec" id="btnRestart">Ver niveles</button>
   </div>
 </div>
 
+<script src="../../comun/niveles.js"></script>
 <script>
 (() => {
   'use strict';
@@ -410,6 +419,10 @@
     if (isBest) store.set('best', score);
     store.set('save', { level: level + 1, score });
     store.set('maxLevel', Math.max(store.get('maxLevel', 1), level + 1));
+    const stars = 1 + (stats.penalties === 0 ? 1 : 0) + (ballsLeft * 2 >= cfg.balls - 6 ? 1 : 0);
+    niveles.completar(level, stars);
+    $('dnStars').innerHTML = Niveles.estrellasHTML(stars);
+    $('dnStars').style.display = '';
     $('dnKicker').textContent = `Nivel ${level} superado`;
     $('dnTitle').textContent = '¡Todas adentro! 🎉';
     $('dnTable').innerHTML = `
@@ -428,6 +441,7 @@
     const up = cans.filter(c => c.state === 'up').length;
     $('dnKicker').textContent = `Nivel ${level}`;
     $('dnTitle').textContent = 'Te quedaste sin pelotitas 😬';
+    $('dnStars').style.display = 'none';
     $('dnTable').innerHTML = `
       <tr><td>Latas embocadas</td><td>${6 - up} / 6</td></tr>
       <tr><td>Puntos de este intento</td><td>${score - levelStartScore}</td></tr>
@@ -715,21 +729,42 @@
   function startFrom(lv, sc) {
     goFullscreen();
     $('startScreen').classList.add('hidden');
+    $('btnMenu').style.display = 'block';
     level = lv; score = sc;
     setTimeout(showLevelIntro, 120);
   }
 
-  $('btnStart').addEventListener('click', () => { store.set('save', null); startFrom(1, 0); });
-  const save = store.get('save', null);
-  if (save && save.level > 1) {
-    const b = $('btnContinue');
-    b.style.display = 'block';
-    b.textContent = `Continuar en el nivel ${save.level} (${save.score} pts)`;
-    b.addEventListener('click', () => startFrom(save.level, save.score));
-    $('btnStart').textContent = 'Empezar de cero';
+  const niveles = Niveles.crear({
+    clave: 'latas',
+    contenedor: $('lvGrid'),
+    minimoVisible: 12,
+    maxAnterior: store.get('maxLevel', 1),
+    alElegir: n => { store.set('save', null); startFrom(n, 0); },
+  });
+
+  function refreshStart() {
+    const save = store.get('save', null);
+    $('btnStart').textContent = save && save.level > 1 ? `Continuar en el nivel ${save.level} (${save.score} pts)` : 'Jugar';
+    const best = store.get('best', 0);
+    $('bestLine').textContent = best ? `Récord: ${best} pts` : '';
+    niveles.render();
   }
-  const best = store.get('best', 0);
-  if (best) $('bestLine').textContent = `Récord: ${best} pts · Nivel máximo: ${store.get('maxLevel', 1)}`;
+  refreshStart();
+
+  $('btnStart').addEventListener('click', () => {
+    const save = store.get('save', null);
+    if (save && save.level > 1) startFrom(save.level, save.score); else startFrom(1, 0);
+  });
+
+  function showMenu() {
+    if (playing) store.set('save', { level, score: levelStartScore });
+    playing = false; aim = null;
+    ['levelScreen', 'doneScreen'].forEach(id => $(id).classList.add('hidden'));
+    $('btnMenu').style.display = 'none';
+    refreshStart();
+    $('startScreen').classList.remove('hidden');
+  }
+  $('btnMenu').addEventListener('click', e => { e.stopPropagation(); showMenu(); });
 
   $('btnGo').addEventListener('click', () => { $('levelScreen').classList.add('hidden'); playing = true; });
   $('btnNext').addEventListener('click', () => {
@@ -738,12 +773,7 @@
     else level++;
     showLevelIntro();
   });
-  $('btnRestart').addEventListener('click', () => {
-    $('doneScreen').classList.add('hidden');
-    store.set('save', null);
-    level = 1; score = 0;
-    showLevelIntro();
-  });
+  $('btnRestart').addEventListener('click', showMenu);
 
   buildLevel(1);
   requestAnimationFrame(loop);

@@ -75,6 +75,10 @@ Los sensores de movimiento del celular sólo funcionan en páginas servidas por 
 
 En iPhone, al tocar **Jugar** el navegador pide permiso para usar el movimiento: hay que aceptarlo.
 
+## Niveles
+
+Todos los juegos tienen niveles para ir avanzando. La pantalla de inicio de cada juego muestra el **mapa de niveles**: los niveles se desbloquean al superar el anterior, cada uno guarda hasta 3 estrellas según cómo lo jugaste, y se puede volver a jugar cualquier nivel ya desbloqueado. Durante el juego, el botón **☰ Niveles** vuelve al mapa.
+
 ## Agregar un juego nuevo
 
-Crear una carpeta `juegos/<nombre-del-juego>/` con su `index.html` y sumar una tarjeta en el `index.html` de la raíz.
+Crear una carpeta `juegos/<nombre-del-juego>/` con su `index.html`, sumar una tarjeta en el `index.html` de la raíz y usar el mapa de niveles compartido (`comun/niveles.js`). Las reglas completas están en [`CLAUDE.md`](CLAUDE.md).

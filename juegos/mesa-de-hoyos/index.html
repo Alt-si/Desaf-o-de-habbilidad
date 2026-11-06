@@ -35,6 +35,11 @@
     background: rgba(0,0,0,.45); color: #fff; border: 0; border-radius: 999px;
     padding: 6px 12px; font-size: 13px; font-weight: 600; display: none;
   }
+  #btnMenu {
+    position: fixed; top: calc(max(10px, env(safe-area-inset-top)) + 40px); left: 14px; z-index: 2;
+    background: rgba(0,0,0,.45); color: #fff; border: 0; border-radius: 999px;
+    padding: 6px 12px; font-size: 13px; font-weight: 600; display: none;
+  }
   .overlay {
     position: fixed; inset: 0; z-index: 5; display: flex; align-items: center; justify-content: center;
     background: rgba(5, 20, 15, .78); backdrop-filter: blur(3px); -webkit-backdrop-filter: blur(3px);
@@ -83,6 +88,7 @@
   <span class="chip" id="hudTime">0.0 s</span>
 </div>
 <button id="btnRecal">⟲ Recalibrar</button>
+<button id="btnMenu">☰ Niveles</button>
 
 <!-- Pantalla inicial -->
 <div class="overlay" id="startScreen">
@@ -90,13 +96,13 @@
     <h1>Mesa de Hoyos</h1>
     <p>Inclinná el celular para mover la mesa y embocá cada bola en el hoyo de <b>su mismo color</b>.</p>
     <div class="rules">
-      <div class="rule"><span class="ic"><span class="dot" style="background:radial-gradient(circle at 35% 35%,#fff,#cfcfcf);border:1px solid #aaa"></span></span>Bola en su hoyo: <b>&nbsp;+100</b></div>
-      <div class="rule"><span class="ic">↩️</span>Hoyo equivocado: la bola sale expulsada y <b>&nbsp;−50</b></div>
-      <div class="rule"><span class="ic">⏱️</span>Terminá rápido para ganar bonus de tiempo</div>
-      <div class="rule"><span class="ic">⬆️</span>Cada nivel trae más colores, trampas y obstáculos</div>
+      <div class="rule"><span class="ic"><span class="dot" style="background:radial-gradient(circle at 35% 35%,#fff,#cfcfcf);border:1px solid #aaa"></span></span><span>Bola en su hoyo: <b> +100</b></span></div>
+      <div class="rule"><span class="ic">↩️</span><span>Hoyo equivocado: la bola sale expulsada y <b> −50</b></span></div>
+      <div class="rule"><span class="ic">⏱️</span><span>Terminá rápido para ganar bonus de tiempo</span></div>
+      <div class="rule"><span class="ic">⬆️</span><span>Cada nivel trae más colores, trampas y obstáculos</span></div>
     </div>
     <button class="btn" id="btnStart">Jugar</button>
-    <button class="btn sec hidden" id="btnContinue" style="display:none"></button>
+    <div id="lvGrid"></div>
     <p class="small" id="hint">Sostené el celular en la posición en que vas a jugar al empezar cada nivel: esa será la mesa “plana”.</p>
     <p class="small" id="bestLine"></p>
   </div>
@@ -119,13 +125,15 @@
   <div class="card">
     <div class="kicker" id="dnKicker">Nivel 1 superado</div>
     <h2>¡Mesa completa! 🎉</h2>
+    <div class="niv-estrellas" id="dnStars"></div>
     <table class="res" id="dnTable"></table>
     <p id="dnBest" class="small"></p>
     <button class="btn" id="btnNext">Siguiente nivel →</button>
-    <button class="btn sec" id="btnRestart">Empezar de cero</button>
+    <button class="btn sec" id="btnRestart">Ver niveles</button>
   </div>
 </div>
 
+<script src="../../comun/niveles.js"></script>
 <script>
 (() => {
   'use strict';
@@ -568,6 +576,9 @@
     if (isBest) store.set('best', score);
     store.set('save', { level: level + 1, score });
     store.set('maxLevel', Math.max(store.get('maxLevel', 1), level + 1));
+    const stars = 1 + (penalties === 0 ? 1 : 0) + (elapsed <= par * 0.6 ? 1 : 0);
+    niveles.completar(level, stars);
+    $('dnStars').innerHTML = Niveles.estrellasHTML(stars);
 
     $('dnKicker').textContent = `Nivel ${level} superado`;
     $('dnTable').innerHTML = `
@@ -850,22 +861,44 @@
     await requestSensors();
     $('startScreen').classList.add('hidden');
     $('btnRecal').style.display = 'block';
+    $('btnMenu').style.display = 'block';
     level = lv; score = sc;
     $('hudTime').textContent = '0.0 s';
     setTimeout(showLevelIntro, 150);
   }
 
-  $('btnStart').addEventListener('click', () => { store.set('save', null); startFrom(1, 0); });
-  const save = store.get('save', null);
-  if (save && save.level > 1) {
-    const b = $('btnContinue');
-    b.style.display = 'block';
-    b.textContent = `Continuar en el nivel ${save.level} (${save.score} pts)`;
-    b.addEventListener('click', () => startFrom(save.level, save.score));
-    $('btnStart').textContent = 'Empezar de cero';
+  const niveles = Niveles.crear({
+    clave: 'mesaHoyos',
+    contenedor: $('lvGrid'),
+    minimoVisible: 12,
+    maxAnterior: store.get('maxLevel', 1),
+    alElegir: n => { store.set('save', null); startFrom(n, 0); },
+  });
+
+  function refreshStart() {
+    const save = store.get('save', null);
+    $('btnStart').textContent = save && save.level > 1 ? `Continuar en el nivel ${save.level} (${save.score} pts)` : 'Jugar';
+    const best = store.get('best', 0);
+    $('bestLine').textContent = best ? `Récord: ${best} pts` : '';
+    niveles.render();
   }
-  const best = store.get('best', 0);
-  if (best) $('bestLine').textContent = `Récord: ${best} pts · Nivel máximo: ${store.get('maxLevel', 1)}`;
+  refreshStart();
+
+  $('btnStart').addEventListener('click', () => {
+    const save = store.get('save', null);
+    if (save && save.level > 1) startFrom(save.level, save.score); else startFrom(1, 0);
+  });
+
+  function showMenu() {
+    if (running) store.set('save', { level, score: levelStartScore });
+    running = false;
+    ['levelScreen', 'doneScreen'].forEach(id => $(id).classList.add('hidden'));
+    $('btnRecal').style.display = 'none';
+    $('btnMenu').style.display = 'none';
+    refreshStart();
+    $('startScreen').classList.remove('hidden');
+  }
+  $('btnMenu').addEventListener('click', e => { e.stopPropagation(); showMenu(); });
 
   $('btnGo').addEventListener('click', beginLevel);
   $('btnNext').addEventListener('click', () => {
@@ -874,13 +907,7 @@
     $('hudTime').textContent = '0.0 s';
     showLevelIntro();
   });
-  $('btnRestart').addEventListener('click', () => {
-    $('doneScreen').classList.add('hidden');
-    store.set('save', null);
-    level = 1; score = 0;
-    $('hudTime').textContent = '0.0 s';
-    showLevelIntro();
-  });
+  $('btnRestart').addEventListener('click', showMenu);
   $('btnRecal').addEventListener('click', e => { e.stopPropagation(); calibrate(); });
 
   if (!('ontouchstart' in window)) {
