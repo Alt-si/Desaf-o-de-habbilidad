@@ -6,6 +6,7 @@ Colección de juegos de habilidad para jugar desde el navegador del celular.
 
 | Juego | Carpeta | Descripción |
 |---|---|---|
+| Fútbol de mesa | [`juegos/futbol-de-mesa`](juegos/futbol-de-mesa/) | Mesa con dos arcos: con una palanca pateás (dirección y potencia) y con la otra movés al arquero. Contra la computadora (por niveles) o en vivo con otra persona. |
 | Tejo | [`juegos/tejo`](juegos/tejo/) | Tejo de playa: tirar los tejos para que queden lo más cerca posible del tejín. Contra la máquina (por niveles), 2 jugadores en el mismo celular o desafío en vivo, cada uno en su celular. |
 | Latas | [`juegos/latas`](juegos/latas/) | Mesa tipo ping-pong con 6 latas en 2 filas de colores. Se lanza la pelotita deslizando el dedo: tiene que picar una sola vez y caer en una lata de su mismo color. |
 | Mesa de Hoyos | [`juegos/mesa-de-hoyos`](juegos/mesa-de-hoyos/) | Mesa a pantalla completa con 4 hoyos (2 blancos, 2 negros) y 4 bolas (2 blancas, 2 negras). Inclinando el celular se mueve la mesa: hay que embocar cada bola en el hoyo de su mismo color. |
@@ -75,6 +76,23 @@ Los sensores de movimiento del celular sólo funcionan en páginas servidas por 
 3. El sitio queda en `https://alt-si.github.io/Desaf-o-de-habbilidad/`.
 
 En iPhone, al tocar **Jugar** el navegador pide permiso para usar el movimiento: hay que aceptarlo.
+
+## Cómo jugar Fútbol de mesa
+
+- Cuando la pelota se frena en tu mitad de la cancha, es tuya: empujá la **palanca de tiro** hacia donde querés patear y soltá (cuanto más la empujás, más fuerte). Tenés 5 segundos; si no, sale sola.
+- Con la **palanca del arquero** lo movés de lado a lado para atajar. La pelota rebota en las bandas, los palos y los arqueros.
+- Cada gol vale 1.
+
+**Opciones** (en la pantalla de inicio):
+
+- **Partido**: *a X goles* (gana el primero que llega a X) o *al mejor de X* (gana el primero que llega a la mayoría: al mejor de 5 = el primero en llegar a 3). X: 1, 3, 5, 7 o 10.
+- **Tu arco**: abajo (de espalda, atacás hacia arriba) o arriba (de frente, atacás hacia abajo).
+- **Palancas**: 2 palancas (una de tiro y otra de arquero) o 1 sola que patea cuando tenés la pelota y mueve al arquero cuando no. Con 2, elegís de qué lado va la de tiro.
+
+**Modos**
+
+- **Contra la computadora**, por niveles: rival que ataja y patea mejor, defensores que se mueven en el medio, arcos más chicos y, desde el nivel 6, un arquero que lee hacia dónde apuntás. Estrellas: ganar · que el rival haga menos de la mitad de los goles · valla invicta.
+- **En vivo con otra persona**: igual que en el Tejo, uno crea la sala y le pasa el código (o el link); el otro se une desde su celular. Se juega en tiempo real; el formato del partido lo pone el que crea la sala, y cada uno elige su vista y sus palancas.
 
 ## Cómo jugar Tejo
 
