@@ -6,6 +6,7 @@ Colección de juegos de habilidad para jugar desde el navegador del celular.
 
 | Juego | Carpeta | Descripción |
 |---|---|---|
+| Máquina de garra | [`juegos/maquina-de-garra`](juegos/maquina-de-garra/) | Máquina de cristal con una garra metálica: con la palanca la movés y con el botón la bajás para agarrar osos y premios, que valen monedas (y el oso dorado, una estrella). |
 | Fútbol de mesa | [`juegos/futbol-de-mesa`](juegos/futbol-de-mesa/) | Mesa con dos arcos: con una palanca pateás (dirección y potencia) y con la otra movés al arquero. Contra la computadora (por niveles) o en vivo con otra persona. |
 | Tejo | [`juegos/tejo`](juegos/tejo/) | Tejo de playa: tirar los tejos para que queden lo más cerca posible del tejín. Contra la máquina (por niveles), 2 jugadores en el mismo celular o desafío en vivo, cada uno en su celular. |
 | Latas | [`juegos/latas`](juegos/latas/) | Mesa tipo ping-pong con 6 latas en 2 filas de colores. Se lanza la pelotita deslizando el dedo: tiene que picar una sola vez y caer en una lata de su mismo color. |
@@ -76,6 +77,23 @@ Los sensores de movimiento del celular sólo funcionan en páginas servidas por 
 3. El sitio queda en `https://alt-si.github.io/Desaf-o-de-habbilidad/`.
 
 En iPhone, al tocar **Jugar** el navegador pide permiso para usar el movimiento: hay que aceptarlo.
+
+## Cómo jugar Máquina de garra
+
+- Con la **palanca** movés la garra a los costados y hacia adelante/atrás. La sombra de la garra sobre los premios y el mapa chiquito del cartel muestran dónde está en profundidad.
+- Con el **botón** la bajás: cierra, sube y lleva el premio a la **salida**. Cuanto más centrada esté sobre el premio, más fuerte lo agarra; si tiene otro encima, cuesta más. En el camino se puede resbalar.
+- Cada ficha tiene un tiempo para ubicar la garra; si se acaba, baja sola.
+
+| Premio | Monedas |
+|---|---|
+| Oso marrón | 10 |
+| Oso rosa | 20 |
+| Oso celeste | 30 |
+| Panda | 50 |
+| Oso dorado | 100 + ⭐ |
+| Regalo sorpresa | 5 a 80 |
+
+Cada nivel da unas fichas y una meta de monedas. Al avanzar, la garra aprieta menos y se resbala más, se balancea al moverla, hay menos tiempo y menos fichas, el oso dorado se esconde al fondo y el piso gira. Estrellas: cumplir la meta · juntar 1,5 veces la meta · sacar el oso dorado. Las monedas y osos dorados que juntás se suman a tu total.
 
 ## Cómo jugar Fútbol de mesa
 
