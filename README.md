@@ -6,7 +6,6 @@ Colección de juegos de habilidad para jugar desde el navegador del celular.
 
 | Juego | Carpeta | Descripción |
 |---|---|---|
-| Máquina de garra | [`juegos/maquina-de-garra`](juegos/maquina-de-garra/) | Máquina de cristal con una garra metálica: con la palanca la movés y con el botón la bajás para agarrar osos y premios, que valen monedas (y el oso dorado, una estrella). |
 | Fútbol de mesa | [`juegos/futbol-de-mesa`](juegos/futbol-de-mesa/) | Mesa con dos arcos: con una palanca pateás (dirección y potencia) y con la otra movés al arquero. Contra la computadora (por niveles) o en vivo con otra persona. |
 | Tejo | [`juegos/tejo`](juegos/tejo/) | Tejo de playa: tirar los tejos para que queden lo más cerca posible del tejín. Contra la máquina (por niveles), 2 jugadores en el mismo celular o desafío en vivo, cada uno en su celular. |
 | Latas | [`juegos/latas`](juegos/latas/) | Mesa tipo ping-pong con 6 latas en 2 filas de colores. Se lanza la pelotita deslizando el dedo: tiene que picar una sola vez y caer en una lata de su mismo color. |
@@ -78,34 +77,18 @@ Los sensores de movimiento del celular sólo funcionan en páginas servidas por 
 
 En iPhone, al tocar **Jugar** el navegador pide permiso para usar el movimiento: hay que aceptarlo.
 
-## Cómo jugar Máquina de garra
-
-- Con la **palanca** movés la garra a los costados y hacia adelante/atrás. La sombra de la garra sobre los premios y el mapa chiquito del cartel muestran dónde está en profundidad.
-- Con el **botón** la bajás: cierra, sube y lleva el premio a la **salida**. Cuanto más centrada esté sobre el premio, más fuerte lo agarra; si tiene otro encima, cuesta más. En el camino se puede resbalar.
-- Cada ficha tiene un tiempo para ubicar la garra; si se acaba, baja sola.
-
-| Premio | Monedas |
-|---|---|
-| Oso marrón | 10 |
-| Oso rosa | 20 |
-| Oso celeste | 30 |
-| Panda | 50 |
-| Oso dorado | 100 + ⭐ |
-| Regalo sorpresa | 5 a 80 |
-
-Cada nivel da unas fichas y una meta de monedas. Al avanzar, la garra aprieta menos y se resbala más, se balancea al moverla, hay menos tiempo y menos fichas, el oso dorado se esconde al fondo y el piso gira. Estrellas: cumplir la meta · juntar 1,5 veces la meta · sacar el oso dorado. Las monedas y osos dorados que juntás se suman a tu total.
-
 ## Cómo jugar Fútbol de mesa
 
-- Cuando la pelota se frena en tu mitad de la cancha, es tuya: empujá la **palanca de tiro** hacia donde querés patear y soltá (cuanto más la empujás, más fuerte). Tenés 5 segundos; si no, sale sola.
-- Con la **palanca del arquero** lo movés de lado a lado para atajar. La pelota rebota en las bandas, los palos y los arqueros.
+- Cuando la pelota se frena en tu mitad de la cancha, es tuya: apuntá con la **palanca** (hacia dónde y qué tan fuerte; cuanto más la empujás, más fuerte) y tocá el botón **⚽ LANZAR**. Tenés 5 segundos; si no, sale sola.
+- Con la **palanca del arquero** lo movés de lado a lado, y el botón **🧤 ATAJAR** hace que se estire un momento (tapa más arco y se mueve más rápido; después tiene un ratito de recarga). La pelota rebota en las bandas, los palos y los arqueros.
+- Los dos jugadores (y la computadora) tienen los mismos botones de lanzar y atajar.
 - Cada gol vale 1.
 
 **Opciones** (en la pantalla de inicio):
 
 - **Partido**: *a X goles* (gana el primero que llega a X) o *al mejor de X* (gana el primero que llega a la mayoría: al mejor de 5 = el primero en llegar a 3). X: 1, 3, 5, 7 o 10.
 - **Tu arco**: abajo (de espalda, atacás hacia arriba) o arriba (de frente, atacás hacia abajo).
-- **Palancas**: 2 palancas (una de tiro y otra de arquero) o 1 sola que patea cuando tenés la pelota y mueve al arquero cuando no. Con 2, elegís de qué lado va la de tiro.
+- **Palancas**: 2 palancas (una de tiro y otra de arquero) o 1 sola que apunta cuando tenés la pelota y mueve al arquero cuando no (los botones LANZAR y ATAJAR están siempre). Con 2, elegís de qué lado va la de tiro.
 
 **Modos**
 

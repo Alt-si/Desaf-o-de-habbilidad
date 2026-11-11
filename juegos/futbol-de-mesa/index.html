@@ -105,8 +105,8 @@
     <h1>⚽ Fútbol de mesa</h1>
     <p>Con una palanca pateás al arco (dirección y potencia) y con la otra movés a tu arquero.</p>
     <div class="rules">
-      <div class="rule"><span class="ic">🕹️</span><span>Cuando la pelota se frena en tu mitad, es tuya: empujá la palanca de tiro hacia donde querés patear y soltá. Más lejos = más fuerte.</span></div>
-      <div class="rule"><span class="ic">🧤</span><span>Deslizá la palanca del arquero para tapar los tiros.</span></div>
+      <div class="rule"><span class="ic">🕹️</span><span>Cuando la pelota se frena en tu mitad, es tuya: apuntá con la palanca (hacia dónde y qué tan fuerte) y tocá <b>LANZAR</b>.</span></div>
+      <div class="rule"><span class="ic">🧤</span><span>Mové al arquero con su palanca y tocá <b>ATAJAR</b> para que se estire y tape más arco.</span></div>
       <div class="rule"><span class="ic">⚽</span><span>Cada gol vale 1.</span></div>
     </div>
     <button class="btn" id="btnCpu">Contra la computadora</button>
@@ -246,8 +246,8 @@
     const c = levelConfig(n), p = n > 1 ? levelConfig(n - 1) : null;
     const it = [];
     if (n === 1) {
-      it.push(['🕹️', 'Cuando la pelota se frena en tu mitad, es tuya. Empujá la <b>palanca de tiro</b> hacia donde querés patear y soltá.']);
-      it.push(['🧤', 'Con la <b>palanca del arquero</b> lo movés de lado a lado.']);
+      it.push(['🕹️', 'Cuando la pelota se frena en tu mitad, es tuya. Apuntá con la <b>palanca</b> (dirección y fuerza) y tocá <b>⚽ LANZAR</b>.']);
+      it.push(['🧤', 'Con la <b>palanca del arquero</b> lo movés de lado a lado. <b>🧤 ATAJAR</b> lo hace estirarse un momento: usalo justo cuando llega el tiro.']);
       it.push(['〰️', 'En los primeros niveles una línea te muestra el recorrido del tiro.']);
       it.push(['⏱️', `Tenés ${SHOT_CLOCK} segundos para patear; si no, la pelota sale sola.`]);
     } else {
@@ -283,7 +283,11 @@
   let me = 0, flip = false;
   let scores = [0, 0];
   let ball = { x: 0, y: 0.35, vx: 0, vy: 0 };
-  let keepers = [{ x: 0, tx: 0, vx: 0 }, { x: 0, tx: 0, vx: 0 }];
+  const newKeeper = () => ({ x: 0, tx: 0, vx: 0, diveT: 0, cd: 0 });
+  let keepers = [newKeeper(), newKeeper()];
+  let aim = { set: false, dx: 0, dy: 0, p: 0 };
+  const DIVE_T = 0.5, DIVE_CD = 1.3;
+  const kHalf = k => KHALF * (k.diveT > 0 ? 1.9 : 1);
   let defenders = [];
   let holder = 0, clock = SHOT_CLOCK;     // quién tiene la pelota (-1 = nadie)
   let phase = 'idle';                     // idle | play | goal | over
@@ -304,7 +308,7 @@
     canvas.width = Math.round(W * DPR); canvas.height = Math.round(H * DPR);
     ctx.setTransform(DPR, 0, 0, DPR, 0, 0);
     const top = 52 + (parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--sat')) || 0);
-    const bottom = 150;
+    const bottom = 222;
     K = Math.min((W - 24) / (TW + 0.08), (H - top - bottom) / (TL + 0.16));
     CX = W / 2;
     const tableH = TL * K;
@@ -340,7 +344,8 @@
     token++;
     scores = [0, 0];
     stats = { shots: [0, 0], saves: [0, 0] };
-    keepers = [{ x: 0, tx: 0, vx: 0 }, { x: 0, tx: 0, vx: 0 }];
+    keepers = [newKeeper(), newKeeper()];
+    aim = { set: false, dx: 0, dy: 0, p: 0 };
     setupDefenders();
     flip = (me === 0) !== (opts.view === 'espalda');
     tGame = 0;
@@ -378,6 +383,8 @@
     ball.vy = Math.cos(ang) * sp * forwardSign(p);
     holder = -1;
     lastShooter = p;
+    if (p === me) aim = { set: false, dx: 0, dy: 0, p: 0 };
+    ai.dived = false;
     stats.shots[p]++;
     vibrate(20);
     if (p === 0 || mode === 'online') ai.lastShotT = tGame;
@@ -393,7 +400,9 @@
     // arqueros
     for (let p = 0; p < 2; p++) {
       const k = keepers[p];
-      const maxSp = (mode === 'cpu' && p === 1) ? cfg.ai.kSpeed : KEEPER_SPEED;
+      if (k.diveT > 0) k.diveT -= dt;
+      if (k.cd > 0) k.cd -= dt;
+      const maxSp = ((mode === 'cpu' && p === 1) ? cfg.ai.kSpeed : KEEPER_SPEED) * (k.diveT > 0 ? 1.8 : 1);
       const R = keeperRange();
       const tx = clamp(k.tx, -R, R);
       const d = tx - k.x;
@@ -436,7 +445,7 @@
     // arqueros (cápsulas)
     for (let p = 0; p < 2; p++) {
       const k = keepers[p], ky = keeperY(p);
-      const qx = clamp(ball.x, k.x - KHALF, k.x + KHALF), qy = ky;
+      const qx = clamp(ball.x, k.x - kHalf(k), k.x + kHalf(k)), qy = ky;
       const dx = ball.x - qx, dy = ball.y - qy, d = Math.hypot(dx, dy), min = BR + KR;
       if (d < min && d > 1e-6) {
         const nx = dx / d, ny = dy / d;
@@ -498,6 +507,14 @@
     kickoff(1 - lastScorer);
   }
 
+  function dive(p) {
+    const k = keepers[p];
+    if (k.cd > 0) return false;
+    k.diveT = DIVE_T; k.cd = DIVE_CD;
+    if (p === me) vibrate(18);
+    return true;
+  }
+
   // ---------- Compu ----------
   function predictX(targetY) {
     // dónde cruza la pelota la línea del arquero, con rebotes en las bandas
@@ -516,14 +533,16 @@
     // arquero
     if (holder === 0) {
       let t = ball.x * 0.35;
-      if (A.readAim && controls.shot.active && controls.shot.p > 0.15) {
-        const dir = toWorldVec(controls.shot.dx, controls.shot.dy);
+      if (A.readAim && aim.set && aim.p > 0.15) {
+        const dir = toWorldVec(aim.dx, aim.dy);
         if (dir.y > 0.05) { const tt = (keeperY(1) - ball.y) / dir.y; t = ball.x + dir.x * tt; }
       }
       k.tx = t;
     } else if (holder === -1 && ball.vy > 0 && tGame - ai.lastShotT > A.react) {
       if (ai.keeperTargetFor !== ai.lastShotT) { ai.keeperTargetFor = ai.lastShotT; ai.err = gauss() * A.kErr; }
       k.tx = predictX(keeperY(1)) + ai.err;
+      const dist = keeperY(1) - ball.y;
+      if (cfg.n >= 2 && !ai.dived && dist < 0.4 && Math.abs(predictX(keeperY(1)) - k.x) > KHALF * 0.8) { ai.dived = true; if (Math.random() < Math.min(0.85, 0.25 + cfg.n * 0.08)) dive(1); }
     } else if (holder === -1 && ball.vy <= 0) k.tx = ball.x * 0.25;
     else if (holder === 1) k.tx = 0;
     // tiro
@@ -546,22 +565,23 @@
     one: { active: false, id: null, cx: 0, cy: 0, dx: 0, dy: 0, p: 0, used: null },
   };
   const LEVER_R = 52;
+  const BTN_R = 34;
   function layout() {
-    const y = H - 92;
+    const y = H - 84, by = H - 188;
     const sliderW = Math.min(190, W * 0.46);
-    if (opts.levers === '1') return { one: { x: W / 2, y }, sliderW };
+    if (opts.levers === '1') return { one: { x: W / 2, y }, sliderW, lanzar: { x: Math.max(52, W * 0.17), y: y - 10 }, atajar: { x: Math.min(W - 52, W * 0.83), y: y - 10 } };
     const left = opts.side === 'left';
-    return {
-      shot: { x: left ? 22 + LEVER_R + 8 : W - 22 - LEVER_R - 8, y },
-      slider: { x: left ? W - 18 - sliderW / 2 : 18 + sliderW / 2, y, w: sliderW },
-      sliderW,
-    };
+    const shot = { x: left ? 22 + LEVER_R + 8 : W - 22 - LEVER_R - 8, y };
+    const slider = { x: left ? W - 18 - sliderW / 2 : 18 + sliderW / 2, y, w: sliderW };
+    return { shot, slider, sliderW, lanzar: { x: shot.x, y: by }, atajar: { x: slider.x, y: by } };
   }
   function iHaveBall() { return phase === 'play' && holder === me; }
 
   canvas.addEventListener('pointerdown', e => {
     if (phase !== 'play' && phase !== 'goal') return;
     const L = layout(), x = e.clientX, y = e.clientY;
+    if (Math.hypot(x - L.lanzar.x, y - L.lanzar.y) < BTN_R + 12) { pressLanzar(); return; }
+    if (Math.hypot(x - L.atajar.x, y - L.atajar.y) < BTN_R + 12) { pressAtajar(); return; }
     if (L.one) {
       if (Math.hypot(x - L.one.x, y - L.one.y) < LEVER_R * 2) {
         Object.assign(controls.one, { active: true, id: e.pointerId, cx: L.one.x, cy: L.one.y, dx: x - L.one.x, dy: y - L.one.y, used: iHaveBall() ? 'shot' : 'keeper' });
@@ -589,15 +609,11 @@
   });
   function endPointer(e) {
     if (controls.shot.active && e.pointerId === controls.shot.id) {
-      const s = controls.shot; s.active = false;
-      if (s.p > 0.12 && iHaveBall()) doMyShot(s);
-      s.p = 0;
+      const s = controls.shot; s.active = false; s.p = 0;
     }
     if (controls.keeper.active && e.pointerId === controls.keeper.id) controls.keeper.active = false;
     if (controls.one.active && e.pointerId === controls.one.id) {
-      const o = controls.one; o.active = false;
-      if (o.used === 'shot' && o.p > 0.12 && iHaveBall()) doMyShot(o);
-      o.p = 0;
+      const o = controls.one; o.active = false; o.p = 0;
     }
   }
   window.addEventListener('pointerup', endPointer);
@@ -607,6 +623,7 @@
     const len = Math.hypot(s.dx, s.dy);
     if (len > LEVER_R) { s.dx *= LEVER_R / len; s.dy *= LEVER_R / len; }
     s.p = Math.min(1, Math.hypot(s.dx, s.dy) / LEVER_R);
+    if ((s === controls.shot || s.used === 'shot') && iHaveBall() && s.p > 0.08) aim = { set: true, dx: s.dx, dy: s.dy, p: s.p };
   }
   function moveOne() {
     const o = controls.one;
@@ -628,10 +645,23 @@
     keepers[me].tx = wx;
     if (mode === 'online' && !isHost) remote.kx = wx;
   }
+  let btnFx = { lanzar: 0, atajar: 0 };
+  function pressLanzar() {
+    btnFx.lanzar = 0.2;
+    if (!iHaveBall()) return;
+    const fwdScreen = flip ? 1 : -1;   // hacia el arco rival en pantalla
+    doMyShot(aim.set ? aim : { dx: 0, dy: fwdScreen * LEVER_R * 0.6, p: 0.6 });
+  }
+  function pressAtajar() {
+    btnFx.atajar = 0.2;
+    if (phase !== 'play') return;
+    if (mode === 'online' && !isHost) { if (keepers[me].cd <= 0) { keepers[me].diveT = DIVE_T; keepers[me].cd = DIVE_CD; vibrate(18); send({ t: 'dive' }); } return; }
+    dive(me);
+  }
   function doMyShot(s) {
     const dir = toWorldVec(s.dx, s.dy);
     const len = Math.hypot(dir.x, dir.y) || 1;
-    if (mode === 'online' && !isHost) { send({ t: 'shot', dx: dir.x / len, dy: dir.y / len, p: s.p }); holder = -1; return; }
+    if (mode === 'online' && !isHost) { send({ t: 'shot', dx: dir.x / len, dy: dir.y / len, p: s.p }); holder = -1; aim = { set: false, dx: 0, dy: 0, p: 0 }; return; }
     shoot(me, dir.x / len, dir.y / len, s.p);
   }
 
@@ -700,7 +730,7 @@
   function drawKeeper(p) {
     const k = keepers[p], ky = keeperY(p), C = PCOL[p];
     const x = SX(k.x, ky), y = SY(k.x, ky);
-    const hl = KHALF * K, r = KR * K;
+    const hl = kHalf(k) * K, r = KR * K;
     // sombra
     ctx.fillStyle = 'rgba(0,0,0,.3)';
     rr(x - hl - r + 2, y - r + 3, (hl + r) * 2, r * 2, r); ctx.fill();
@@ -752,8 +782,8 @@
   }
 
   function drawAim() {
-    const s = opts.levers === '1' ? controls.one : controls.shot;
-    if (!s.active || s.p < 0.05 || !iHaveBall() || (opts.levers === '1' && s.used !== 'shot')) return;
+    const s = aim;
+    if (!s.set || s.p < 0.05 || !iHaveBall()) return;
     const dir = toWorldVec(s.dx, s.dy); const len = Math.hypot(dir.x, dir.y) || 1;
     let ang = Math.atan2(dir.x / len, (dir.y / len) * forwardSign(me));
     ang = clamp(ang, -1.22, 1.22);
@@ -790,10 +820,10 @@
     ctx.save();
     if (L.one) {
       const o = controls.one;
-      drawStick(L.one.x, L.one.y, o.active ? o.dx : 0, o.active ? o.dy : 0, hasBall ? '⚽ Patear' : '🧤 Arquero ↔', hasBall, o.active ? o.p : 0);
+      drawStick(L.one.x, L.one.y, o.active ? o.dx : 0, o.active ? o.dy : 0, hasBall ? '🎯 Apuntar' : '🧤 Arquero ↔', true, o.active ? o.p : (hasBall && aim.set ? aim.p : 0));
     } else {
       const s = controls.shot;
-      drawStick(L.shot.x, L.shot.y, s.active ? s.dx : 0, s.active ? s.dy : 0, '⚽ Tiro', hasBall, s.active ? s.p : 0);
+      drawStick(L.shot.x, L.shot.y, s.active ? s.dx : 0, s.active ? s.dy : 0, '🎯 Apuntar', hasBall, s.active ? s.p : (hasBall && aim.set ? aim.p : 0));
       // slider del arquero
       const sl = L.slider, w = sl.w;
       ctx.fillStyle = 'rgba(0,0,0,.4)'; rr(sl.x - w / 2, sl.y - 22, w, 44, 22); ctx.fill();
@@ -808,6 +838,24 @@
       ctx.fillStyle = 'rgba(255,255,255,.7)'; ctx.font = '700 11px system-ui';
       ctx.fillText('ARQUERO ↔', sl.x, sl.y + 36);
     }
+    drawButton(L.lanzar.x, L.lanzar.y, '⚽', 'LANZAR', hasBall, btnFx.lanzar > 0, '#e8a317');
+    const k = keepers[me];
+    drawButton(L.atajar.x, L.atajar.y, '🧤', k.cd > 0 ? `${k.cd.toFixed(1)}` : 'ATAJAR', k.cd <= 0, btnFx.atajar > 0 || k.diveT > 0, '#2e9d5b');
+    ctx.restore();
+  }
+  function drawButton(x, y, icon, label, enabled, pressed, col) {
+    ctx.save();
+    ctx.globalAlpha = enabled ? 1 : 0.45;
+    ctx.beginPath(); ctx.arc(x, y + 5, BTN_R, 0, Math.PI * 2); ctx.fillStyle = 'rgba(0,0,0,.45)'; ctx.fill();
+    const py = pressed ? 4 : 0;
+    ctx.beginPath(); ctx.arc(x, y + py, BTN_R, 0, Math.PI * 2);
+    const g = ctx.createRadialGradient(x - 10, y - 12 + py, 3, x, y + py, BTN_R);
+    g.addColorStop(0, '#fff'); g.addColorStop(0.25, col); g.addColorStop(1, col);
+    ctx.fillStyle = g; ctx.fill();
+    ctx.strokeStyle = 'rgba(255,255,255,.7)'; ctx.lineWidth = 2; ctx.stroke();
+    ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+    ctx.font = '20px system-ui'; ctx.fillText(icon, x, y - 7 + py);
+    ctx.fillStyle = '#fff'; ctx.font = '900 11px system-ui'; ctx.fillText(label, x, y + 13 + py);
     ctx.restore();
   }
   function drawStick(x, y, dx, dy, label, enabled, p) {
@@ -859,12 +907,12 @@
   function drawHint() {
     if (phase !== 'play') return;
     let txt = null;
-    if (holder === me) txt = opts.levers === '1' ? '¡Tu pelota! Empujá la palanca y soltá' : '¡Tu pelota! Usá la palanca de tiro';
-    else if (holder >= 0) txt = mode === 'cpu' ? `Va a patear ${names[1]}… ¡atajá!` : `Va a patear ${names[holder]}… ¡atajá!`;
+    if (holder === me) txt = aim.set ? '¡Tocá LANZAR!' : '¡Tu pelota! Apuntá';
+    else if (holder >= 0) txt = '¡Preparate para atajar!';
     if (!txt) return;
     ctx.save();
     ctx.font = '700 13px system-ui'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
-    const tw = ctx.measureText(txt).width + 22, y = BY + 0.045 * K + 18;
+    const tw = ctx.measureText(txt).width + 22, y = H - 188;
     ctx.fillStyle = holder === me ? PCOL[me].main : 'rgba(0,0,0,.5)';
     rr(W / 2 - tw / 2, y - 13, tw, 26, 13); ctx.fill();
     ctx.fillStyle = '#fff'; ctx.fillText(txt, W / 2, y);
@@ -872,6 +920,7 @@
   }
 
   function draw(dt, time) {
+    btnFx.lanzar = Math.max(0, btnFx.lanzar - dt); btnFx.atajar = Math.max(0, btnFx.atajar - dt);
     drawTable(time);
     defenders.forEach(drawDefender);
     drawKeeper(0); drawKeeper(1);
@@ -1058,6 +1107,7 @@
         break;
       case 'in': if (isHost) keepers[1].tx = m.kx; break;
       case 'shot': if (isHost) shoot(1, m.dx, m.dy, m.p); break;
+      case 'dive': if (isHost) dive(1); break;
       case 'st': if (!isHost) applyState(m); break;
       case 'ev':
         if (!isHost && m.e === 'goal') {
@@ -1081,7 +1131,7 @@
     if (now - remote.lastState < 0.05) return;
     remote.lastState = now;
     const r = v => Math.round(v * 1e4) / 1e4;
-    send({ t: 'st', b: [r(ball.x), r(ball.y), r(ball.vx), r(ball.vy)], k: [r(keepers[0].x), r(keepers[1].x)], h: holder, c: Math.round(clock * 10) / 10, s: scores, ph: phase, tg: r(tGame) });
+    send({ t: 'st', b: [r(ball.x), r(ball.y), r(ball.vx), r(ball.vy)], k: [r(keepers[0].x), r(keepers[1].x)], dv: [r(Math.max(0, keepers[0].diveT)), r(Math.max(0, keepers[1].diveT))], h: holder, c: Math.round(clock * 10) / 10, s: scores, ph: phase, tg: r(tGame) });
   }
 
   let target = null;
@@ -1091,6 +1141,7 @@
     if (m.s[0] !== scores[0] || m.s[1] !== scores[1]) { scores = m.s; updateHud(); }
     if (phase !== 'over') phase = m.ph;
     keepers[0].x += (m.k[0] - keepers[0].x) * 0.6;
+    if (m.dv) keepers[0].diveT = m.dv[0];
     tGame = m.tg;
   }
   function guestUpdate(dt) {
@@ -1107,8 +1158,10 @@
       target.b = [tx + tvx * dt, ty + tvy * dt, tvx, tvy];
     }
     // mi arquero: respuesta inmediata en pantalla
+    for (const kk of keepers) { if (kk.diveT > 0) kk.diveT -= dt; if (kk.cd > 0) kk.cd -= dt; }
     const k = keepers[1]; const d = clamp(k.tx, -keeperRange(), keeperRange()) - k.x;
-    k.x += clamp(d, -KEEPER_SPEED * dt, KEEPER_SPEED * dt);
+    const ksp = KEEPER_SPEED * (k.diveT > 0 ? 1.8 : 1);
+    k.x += clamp(d, -ksp * dt, ksp * dt);
     keepers[0].x += (target.k[0] - keepers[0].x) * 0.3;
     // enviar mi arquero
     const now = performance.now() / 1000;
