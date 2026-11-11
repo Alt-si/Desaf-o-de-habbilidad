@@ -6,6 +6,7 @@ Colección de juegos de habilidad para jugar desde el navegador del celular.
 
 | Juego | Carpeta | Descripción |
 |---|---|---|
+| Mini golf | [`juegos/golf`](juegos/golf/) | Golf en espacios reducidos con obstáculos, toboganes, rampas, botones y objetos para empujar; pasa del césped al jardín, el baño (¡el hoyo es un inodoro!), la cocina y el cuarto de juegos. Por niveles, contra la máquina o en vivo. |
 | Fútbol de mesa | [`juegos/futbol-de-mesa`](juegos/futbol-de-mesa/) | Mesa con dos arcos: con una palanca pateás (dirección y potencia) y con la otra movés al arquero. Contra la computadora (por niveles) o en vivo con otra persona. |
 | Tejo | [`juegos/tejo`](juegos/tejo/) | Tejo de playa: tirar los tejos para que queden lo más cerca posible del tejín. Contra la máquina (por niveles), 2 jugadores en el mismo celular o desafío en vivo, cada uno en su celular. |
 | Latas | [`juegos/latas`](juegos/latas/) | Mesa tipo ping-pong con 6 latas en 2 filas de colores. Se lanza la pelotita deslizando el dedo: tiene que picar una sola vez y caer en una lata de su mismo color. |
@@ -76,6 +77,16 @@ Los sensores de movimiento del celular sólo funcionan en páginas servidas por 
 3. El sitio queda en `https://alt-si.github.io/Desaf-o-de-habbilidad/`.
 
 En iPhone, al tocar **Jugar** el navegador pide permiso para usar el movimiento: hay que aceptarlo.
+
+## Cómo jugar Mini golf
+
+- Apoyá el dedo en cualquier lugar, tirá hacia atrás (como una gomera) y soltá: la flecha muestra hacia dónde va y la barra, la fuerza.
+- Cada hoyo tiene un **par** (golpes esperados) y un máximo de golpes (el doble del par + 2).
+- Obstáculos: paredes que rebotan, hongos y rollos de papel saltarines, **toboganes** que llevan la pelota a otra parte de la cancha, **cuestas** y **cintas** que la empujan, **agua** (vuelve adonde le pegaste y suma 1 golpe), **arena** que frena, **jabón** que resbala, **patitos** que se empujan, **molinos** y **sartenes** que se mueven, y **botones** que abren compuertas.
+
+**Niveles** (15): 1-5 césped (los primeros enseñan a tirar), 6-8 jardín, 9-11 baño (el hoyo es un inodoro), 12-13 cocina (el hoyo es una olla) y 14-15 cuarto de juegos (el hoyo es la caja de juguetes). Estrellas: 3 con el par o menos · 2 con un golpe más · 1 si la embocás.
+
+**Contra la máquina**: recorrido de 3, 6 o 9 hoyos, por turnos, con la máquina en fácil, normal o difícil. **Desafío en vivo**: igual, contra otra persona en su celular (el que crea la sala elige la cantidad de hoyos). Gana el que suma menos golpes.
 
 ## Cómo jugar Fútbol de mesa
 

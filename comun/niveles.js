@@ -6,6 +6,7 @@
  *     clave: 'miJuego',            // prefijo para guardar el progreso en el celular
  *     contenedor: elemento,        // donde se dibuja la grilla de niveles
  *     minimoVisible: 12,           // cuántos niveles mostrar como mínimo
+ *     total: 15,                   // (opcional) si el juego tiene una cantidad fija de niveles
  *     maxAnterior: 1,              // (opcional) nivel desbloqueado guardado por versiones viejas
  *     alElegir: nivel => { ... },  // se llama al tocar un nivel desbloqueado
  *   });
@@ -65,7 +66,8 @@
     function render() {
       const el = op.contenedor;
       if (!el) return;
-      const visibles = Math.max(op.minimoVisible || 12, Math.ceil((datos.max + 2) / 4) * 4);
+      let visibles = Math.max(op.minimoVisible || 12, Math.ceil((datos.max + 2) / 4) * 4);
+      if (op.total) visibles = op.total;
       let html = `<div class="niv-tit"><b>Niveles</b><span>★ ${totalEstrellas()}</span></div><div class="niv-grid">`;
       for (let n = 1; n <= visibles; n++) {
         const bloq = n > datos.max;
@@ -86,7 +88,7 @@
       const antes = datos.estrellas[nivel] || 0;
       const mejora = estrellas > antes;
       if (mejora) datos.estrellas[nivel] = estrellas;
-      if (nivel + 1 > datos.max) datos.max = nivel + 1;
+      if (nivel + 1 > datos.max) datos.max = op.total ? Math.min(op.total, nivel + 1) : nivel + 1;
       guardar();
       render();
       return { mejora, antes };
