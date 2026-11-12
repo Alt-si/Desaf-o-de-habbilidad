@@ -3,6 +3,7 @@
 - Cada juego vive en `juegos/<nombre>/index.html`, en un solo archivo (HTML + CSS + JS), y se publica con GitHub Pages.
 - Agregar una tarjeta del juego en el `index.html` de la raíz y una sección en el `README.md`.
 - Todo en español rioplatense (vos), pensado para jugar en el celular a pantalla completa.
+- Botón para volver atrás: en la pantalla de inicio del juego, `<a class="volver" href="../../">← Todos los juegos</a>`; durante la partida, un botón "←" que vuelve al menú del juego.
 
 ## Niveles (obligatorio en todos los juegos)
 

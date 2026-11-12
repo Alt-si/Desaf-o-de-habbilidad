@@ -87,6 +87,8 @@
   .dot { display: inline-block; width: 12px; height: 12px; border-radius: 50%; vertical-align: middle; margin-right: 4px; }
   .spin { display: inline-block; width: 18px; height: 18px; border: 3px solid #cfe5ea; border-top-color: #1b6f8a; border-radius: 50%; animation: sp 1s linear infinite; vertical-align: middle; margin-right: 6px; }
   @keyframes sp { to { transform: rotate(360deg); } }
+  .volver { display: block; width: max-content; margin: -6px 0 8px -4px; padding: 6px 10px; border-radius: 999px; font-size: 13.5px; font-weight: 700; text-decoration: none; color: #555; background: rgba(0,0,0,.06); }
+  .volver:active { transform: scale(.97); }
 </style>
 </head>
 <body>
@@ -97,12 +99,13 @@
   <span class="chip small" id="hudTarget">a 7</span>
   <span class="chip" id="hudP1"><span class="d" style="background:#1e63d6"></span><span id="hudN1">Máquina</span> <b id="hudS1">0</b></span>
 </div>
-<button id="btnMenu">☰ Menú</button>
+<button id="btnMenu">← Volver</button>
 <div id="netState">🟢 En vivo</div>
 
 <!-- Inicio -->
 <div class="overlay" id="startScreen">
   <div class="card">
+    <a class="volver" href="../../">← Todos los juegos</a>
     <h1>Tejo</h1>
     <p>Tirá tus tejos para que queden <b>lo más cerca posible del tejín</b>. Gana la ronda el que arrima más.</p>
     <div class="rules">
@@ -125,6 +128,7 @@
     <h2 id="lvTitle">Rival: Novato</h2>
     <div class="news" id="lvNews"></div>
     <button class="btn" id="btnGo">¡A jugar!</button>
+    <button class="btn sec" id="btnLvBack">← Volver</button>
   </div>
 </div>
 
@@ -1261,6 +1265,7 @@
   });
   $('btnLobbyBack').addEventListener('click', showMenu);
 
+  $('btnLvBack').addEventListener('click', showMenu);
   $('btnGo').addEventListener('click', () => {
     $('levelScreen').classList.add('hidden');
     phase = 'idle';

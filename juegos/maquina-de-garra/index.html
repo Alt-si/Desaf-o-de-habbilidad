@@ -68,6 +68,8 @@
   table.res td { padding: 6px 4px; border-bottom: 1px solid #eadcf5; text-align: left; }
   table.res td:last-child { text-align: right; font-weight: 700; font-variant-numeric: tabular-nums; }
   table.res tr.total td { border-bottom: 0; font-size: 18px; padding-top: 10px; }
+  .volver { display: block; width: max-content; margin: -6px 0 8px -4px; padding: 6px 10px; border-radius: 999px; font-size: 13.5px; font-weight: 700; text-decoration: none; color: #555; background: rgba(0,0,0,.06); }
+  .volver:active { transform: scale(.97); }
 </style>
 </head>
 <body>
@@ -79,10 +81,11 @@
   <span class="chip goal" id="hudGoal">Meta 60</span>
   <span class="chip" id="hudTries">🎟️ 6</span>
 </div>
-<button id="btnMenu">☰</button>
+<button id="btnMenu" aria-label="Volver">←</button>
 
 <div class="overlay" id="startScreen">
   <div class="card">
+    <a class="volver" href="../../">← Todos los juegos</a>
     <h1>🧸 Máquina de garra</h1>
     <p>Mové la garra con la <b>palanca</b>, tocá el <b>botón</b> para bajarla y agarrá un premio. Si lo llevás hasta la salida, ganás sus monedas.</p>
     <div class="prizes" id="prizeList"></div>
@@ -102,6 +105,7 @@
     <h2 id="lvTitle">¡A pescar premios!</h2>
     <div class="news" id="lvNews"></div>
     <button class="btn" id="btnGo">Poner ficha 🎟️</button>
+    <button class="btn sec" id="btnLvBack">← Volver</button>
   </div>
 </div>
 
@@ -924,6 +928,7 @@
   }
 
   $('btnPlay').addEventListener('click', () => startLevel(Math.min(store.get('save', 1), niveles.desbloqueado())));
+  $('btnLvBack').addEventListener('click', showMenu);
   $('btnGo').addEventListener('click', () => {
     $('levelScreen').classList.add('hidden');
     $('hud').style.display = 'flex'; $('btnMenu').style.display = 'block';

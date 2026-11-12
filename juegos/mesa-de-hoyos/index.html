@@ -76,6 +76,8 @@
   table.res td:last-child { text-align: right; font-weight: 700; font-variant-numeric: tabular-nums; }
   table.res tr.total td { border-bottom: 0; font-size: 18px; padding-top: 10px; }
   .neg { color: #c62828; } .pos { color: #1f8a4c; }
+  .volver { display: block; width: max-content; margin: -6px 0 8px -4px; padding: 6px 10px; border-radius: 999px; font-size: 13.5px; font-weight: 700; text-decoration: none; color: #555; background: rgba(0,0,0,.06); }
+  .volver:active { transform: scale(.97); }
 </style>
 </head>
 <body>
@@ -88,11 +90,12 @@
   <span class="chip" id="hudTime">0.0 s</span>
 </div>
 <button id="btnRecal">⟲ Recalibrar</button>
-<button id="btnMenu">☰ Niveles</button>
+<button id="btnMenu">← Volver</button>
 
 <!-- Pantalla inicial -->
 <div class="overlay" id="startScreen">
   <div class="card">
+    <a class="volver" href="../../">← Todos los juegos</a>
     <h1>Mesa de Hoyos</h1>
     <p>Inclinná el celular para mover la mesa y embocá cada bola en el hoyo de <b>su mismo color</b>.</p>
     <div class="rules">
@@ -117,6 +120,7 @@
     <div class="news" id="lvNews"></div>
     <button class="btn" id="btnGo">¡Empezar!</button>
     <p class="small">Sostené el celular cómodo al tocar: esa posición es la mesa plana.</p>
+    <button class="btn sec" id="btnLvBack">← Volver</button>
   </div>
 </div>
 
@@ -900,6 +904,7 @@
   }
   $('btnMenu').addEventListener('click', e => { e.stopPropagation(); showMenu(); });
 
+  $('btnLvBack').addEventListener('click', showMenu);
   $('btnGo').addEventListener('click', beginLevel);
   $('btnNext').addEventListener('click', () => {
     $('doneScreen').classList.add('hidden');

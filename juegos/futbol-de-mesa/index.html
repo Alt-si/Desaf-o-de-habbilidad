@@ -86,6 +86,8 @@
   .dot { display: inline-block; width: 12px; height: 12px; border-radius: 50%; vertical-align: middle; margin-right: 4px; }
   .spin { display: inline-block; width: 18px; height: 18px; border: 3px solid #cfe9d6; border-top-color: #187a3e; border-radius: 50%; animation: sp 1s linear infinite; vertical-align: middle; margin-right: 6px; }
   @keyframes sp { to { transform: rotate(360deg); } }
+  .volver { display: block; width: max-content; margin: -6px 0 8px -4px; padding: 6px 10px; border-radius: 999px; font-size: 13.5px; font-weight: 700; text-decoration: none; color: #555; background: rgba(0,0,0,.06); }
+  .volver:active { transform: scale(.97); }
 </style>
 </head>
 <body>
@@ -96,12 +98,13 @@
   <span class="chip small" id="hudTarget">a 5</span>
   <span class="chip"><span class="d" style="background:#1e63d6"></span><span id="hudN1">Compu</span> <b id="hudS1">0</b></span>
 </div>
-<button id="btnMenu">☰</button>
+<button id="btnMenu" aria-label="Volver">←</button>
 <div id="netState">🟢</div>
 
 <!-- Inicio -->
 <div class="overlay" id="startScreen">
   <div class="card">
+    <a class="volver" href="../../">← Todos los juegos</a>
     <h1>⚽ Fútbol de mesa</h1>
     <p>Con una palanca pateás al arco (dirección y potencia) y con la otra movés a tu arquero.</p>
     <div class="rules">
@@ -153,6 +156,7 @@
     <h2 id="lvTitle">Rival</h2>
     <div class="news" id="lvNews"></div>
     <button class="btn" id="btnGo">¡A jugar!</button>
+    <button class="btn sec" id="btnLvBack">← Volver</button>
   </div>
 </div>
 
@@ -1292,6 +1296,7 @@
     try { if (navigator.share) await navigator.share({ title: 'Fútbol de mesa', text, url }); else { await navigator.clipboard.writeText(text); lobbyMsg('Invitación copiada.'); } } catch (_) {}
   });
   $('btnLobbyBack').addEventListener('click', showMenu);
+  $('btnLvBack').addEventListener('click', showMenu);
   $('btnGo').addEventListener('click', () => { $('levelScreen').classList.add('hidden'); startMatch(); });
   $('btnNext').addEventListener('click', () => {
     const m = $('btnNext').dataset.mode;
