@@ -6,7 +6,7 @@ Colección de juegos de habilidad para jugar desde el navegador del celular.
 
 | Juego | Carpeta | Descripción |
 |---|---|---|
-| Mini golf | [`juegos/golf`](juegos/golf/) | Golf en espacios reducidos con obstáculos, toboganes, rampas, botones y objetos para empujar; pasa del césped al jardín, el baño (¡el hoyo es un inodoro!), la cocina y el cuarto de juegos. Por niveles, contra la máquina o en vivo. |
+| Mini golf | [`juegos/golf`](juegos/golf/) | Golf en espacios reducidos con obstáculos, relieve, plataformas elevadas, viento, dos palos (putter y hierro), toboganes, botones y objetos para empujar; pasa del césped al jardín, el baño (¡el hoyo es un inodoro!), la cocina y el cuarto de juegos. Por niveles, contra la máquina o en vivo. |
 | Fútbol de mesa | [`juegos/futbol-de-mesa`](juegos/futbol-de-mesa/) | Mesa con dos arcos: con una palanca pateás (dirección y potencia) y con la otra movés al arquero. Contra la computadora (por niveles) o en vivo con otra persona. |
 | Tejo | [`juegos/tejo`](juegos/tejo/) | Tejo de playa: tirar los tejos para que queden lo más cerca posible del tejín. Contra la máquina (por niveles), 2 jugadores en el mismo celular o desafío en vivo, cada uno en su celular. |
 | Latas | [`juegos/latas`](juegos/latas/) | Mesa tipo ping-pong con 6 latas en 2 filas de colores. Se lanza la pelotita deslizando el dedo: tiene que picar una sola vez y caer en una lata de su mismo color. |
@@ -81,12 +81,15 @@ En iPhone, al tocar **Jugar** el navegador pide permiso para usar el movimiento:
 ## Cómo jugar Mini golf
 
 - Apoyá el dedo en cualquier lugar, tirá hacia atrás (como una gomera) y soltá: la flecha muestra hacia dónde va y la barra, la fuerza.
-- Cada hoyo tiene un **par** (golpes esperados) y un máximo de golpes (el doble del par + 2).
-- Obstáculos: paredes que rebotan, hongos y rollos de papel saltarines, **toboganes** que llevan la pelota a otra parte de la cancha, **cuestas** y **cintas** que la empujan, **agua** (vuelve adonde le pegaste y suma 1 golpe), **arena** que frena, **jabón** que resbala, **patitos** que se empujan, **molinos** y **sartenes** que se mueven, y **botones** que abren compuertas.
+- **Palos** (botones abajo): el **putter** hace rodar la pelota; el **hierro** la levanta por el aire: pasa por encima del agua, la arena, el relieve y los objetos bajos, pero no de las paredes, y el viento la desvía mucho. Una marca muestra dónde cae (sin contar el viento). El hierro aparece desde el nivel 6.
+- **Viento** (o **ventilador** adentro de la casa): desde el nivel 9, con una flecha arriba que indica hacia dónde sopla y si es suave, medio o fuerte.
+- **Relieve**: lomas que desvían la pelota, pozos que la atrapan, cuestas, y **plataformas elevadas** (una mesa, un escalón, la mesada) con el hoyo arriba: rodando no se sube, hay que levantar la pelota con el hierro.
+- Cada hoyo tiene un **par** y un máximo de golpes (el doble del par + 2).
+- Más obstáculos: paredes que rebotan, hongos y rollos de papel saltarines, **toboganes**, **cintas**, **agua** (vuelve adonde le pegaste y suma 1 golpe), **arena**, **jabón**, **patitos** que se empujan, **molinos** y **sartenes** que se mueven, y **botones** que abren compuertas.
 
-**Niveles** (15): 1-5 césped (los primeros enseñan a tirar), 6-8 jardín, 9-11 baño (el hoyo es un inodoro), 12-13 cocina (el hoyo es una olla) y 14-15 cuarto de juegos (el hoyo es la caja de juguetes). Estrellas: 3 con el par o menos · 2 con un golpe más · 1 si la embocás.
+**Niveles** (19): 1-5 césped (los primeros enseñan a tirar), 6-10 jardín (hierro, lomas y pozos, la mesa alta, viento), 11-14 baño (el hoyo es un inodoro, uno de ellos arriba de un escalón), 15-17 cocina (el hoyo es una olla, una vez sobre la mesada) y 18-19 cuarto de juegos. Estrellas: 3 con el par o menos · 2 con un golpe más · 1 si la embocás.
 
-**Contra la máquina**: recorrido de 3, 6 o 9 hoyos, por turnos, con la máquina en fácil, normal o difícil. **Desafío en vivo**: igual, contra otra persona en su celular (el que crea la sala elige la cantidad de hoyos). Gana el que suma menos golpes.
+**Contra la máquina**: recorrido de 3, 6 o 9 hoyos, por turnos, con la máquina en fácil, normal o difícil (elige palo y tiro simulando la física). **Desafío en vivo**: igual, contra otra persona en su celular (el que crea la sala elige la cantidad de hoyos). Gana el que suma menos golpes.
 
 ## Cómo jugar Fútbol de mesa
 
