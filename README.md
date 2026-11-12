@@ -6,7 +6,7 @@ Colección de juegos de habilidad para jugar desde el navegador del celular.
 
 | Juego | Carpeta | Descripción |
 |---|---|---|
-| Mini golf | [`juegos/golf`](juegos/golf/) | Golf en espacios reducidos con obstáculos, relieve, plataformas elevadas, viento, dos palos (putter y hierro), toboganes, botones y objetos para empujar; pasa del césped al jardín, el baño (¡el hoyo es un inodoro!), la cocina y el cuarto de juegos. Por niveles, contra la máquina o en vivo. |
+| Mini golf | [`juegos/golf`](juegos/golf/) | Mini golf de pistas clásicas (cerradura, L, zigzag) con rizo, rampa, jorobas, túnel, volcán, molino y puente; viento y dos palos; también en el baño (¡el hoyo es un inodoro!), la cocina y el cuarto de juegos. 60 niveles, contra la máquina o en vivo. |
 | Fútbol de mesa | [`juegos/futbol-de-mesa`](juegos/futbol-de-mesa/) | Mesa con dos arcos: con una palanca pateás (dirección y potencia) y con la otra movés al arquero. Contra la computadora (por niveles) o en vivo con otra persona. |
 | Tejo | [`juegos/tejo`](juegos/tejo/) | Tejo de playa: tirar los tejos para que queden lo más cerca posible del tejín. Contra la máquina (por niveles), 2 jugadores en el mismo celular o desafío en vivo, cada uno en su celular. |
 | Latas | [`juegos/latas`](juegos/latas/) | Mesa tipo ping-pong con 6 latas en 2 filas de colores. Se lanza la pelotita deslizando el dedo: tiene que picar una sola vez y caer en una lata de su mismo color. |
@@ -80,16 +80,18 @@ En iPhone, al tocar **Jugar** el navegador pide permiso para usar el movimiento:
 
 ## Cómo jugar Mini golf
 
+Mini golf de pistas clásicas: pistas elevadas con forma de cerradura (pasillo + círculo final), en L, en zigzag, en U o en ese, con bordes de colores y obstáculos como los de los minigolfs de verdad, vistas en perspectiva.
+
 - Apoyá el dedo en cualquier lugar, tirá hacia atrás (como una gomera) y soltá: la flecha muestra hacia dónde va y la barra, la fuerza.
-- **Palos** (botones abajo): el **putter** hace rodar la pelota; el **hierro** la levanta por el aire: pasa por encima del agua, la arena, el relieve y los objetos bajos, pero no de las paredes, y el viento la desvía mucho. Una marca muestra dónde cae (sin contar el viento). El hierro aparece desde el nivel 6.
-- **Viento** (o **ventilador** adentro de la casa): desde el nivel 9, con una flecha arriba que indica hacia dónde sopla y si es suave, medio o fuerte.
-- **Relieve**: lomas que desvían la pelota, pozos que la atrapan, cuestas, y **plataformas elevadas** (una mesa, un escalón, la mesada) con el hoyo arriba: rodando no se sube, hay que levantar la pelota con el hierro.
+- **Obstáculos**: postes de colores, **jorobas** (frenan y pueden dejarte en el pozo), **caja con túnel**, **rizo** (si vas lento, la pelota vuelve), **rampa** para saltar el agua, **volcán** con el hoyo en la punta, **molino**, **puente colgante** sobre el agua, compuertas con botón, cuestas, arena, cintas y un **tobogán** que une dos pistas.
+- **Palos** (desde el nivel 10): el **putter** hace rodar la pelota; el **hierro** la levanta por el aire (pasa por encima del agua y lo bajo, no de los bordes). Una marca muestra dónde cae.
+- **Viento** (o ventilador adentro de la casa) desde el nivel 11, con una flecha que indica hacia dónde sopla.
+- **Lugares**: cancha de cemento, césped, ripio, patio de baldosas… y también el **baño** (el hoyo es un inodoro), la **cocina** (una olla) y el **cuarto de juegos** (la caja de juguetes).
 - Cada hoyo tiene un **par** y un máximo de golpes (el doble del par + 2).
-- Más obstáculos: paredes que rebotan, hongos y rollos de papel saltarines, **toboganes**, **cintas**, **agua** (vuelve adonde le pegaste y suma 1 golpe), **arena**, **jabón**, **patitos** que se empujan, **molinos** y **sartenes** que se mueven, y **botones** que abren compuertas.
 
-**Niveles** (50): 1-5 césped (los primeros enseñan a tirar), 6-10 jardín (hierro, lomas y pozos, la mesa alta, viento), 11-14 baño (el hoyo es un inodoro, uno de ellos arriba de un escalón), 15-17 cocina (el hoyo es una olla, una vez sobre la mesada), 18-19 cuarto de juegos, y del 20 al 50 recorridos que van rotando por todos los escenarios, cada vez con más obstáculos y viento. Los niveles 20 a 50 se armaron con un generador y se verificaron haciendo que la máquina los juegue (todos tienen solución y el par sale de esas partidas). Estrellas: 3 con el par o menos · 2 con un golpe más · 1 si la embocás.
+**Niveles** (60): del 1 al 15 armados a mano, que van presentando cada obstáculo; del 16 al 60, pistas armadas con un generador que combina formas y obstáculos y sube la dificultad y el viento. Cada una se verificó haciendo que la máquina la juegue: todas tienen solución y el par sale de esas partidas. Estrellas: 3 con el par o menos · 2 con un golpe más · 1 si la embocás.
 
-**Contra la máquina**: recorrido de 3, 6 o 9 hoyos, por turnos, con la máquina en fácil, normal o difícil (elige palo y tiro simulando la física). **Desafío en vivo**: igual, contra otra persona en su celular (el que crea la sala elige la cantidad de hoyos). Gana el que suma menos golpes.
+**Contra la máquina**: recorrido de 3, 6 o 9 hoyos, por turnos, con la máquina en fácil, normal o difícil (elige palo y tiro simulando la física). **Desafío en vivo**: igual, contra otra persona en su celular. Gana el que suma menos golpes.
 
 ## Cómo jugar Fútbol de mesa
 

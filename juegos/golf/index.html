@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="mobile-web-app-capable" content="yes">
-<meta name="theme-color" content="#14532d">
+<meta name="theme-color" content="#2f6b2f">
 <title>Mini golf · Desafío de Habilidad</title>
 <style>
   * { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
@@ -103,7 +103,7 @@
   <div class="card">
     <a class="volver" href="../../">← Todos los juegos</a>
     <h1>⛳ Mini golf</h1>
-    <p>Llevá la pelota al hoyo en la menor cantidad de golpes: rebotá, usá toboganes, rampas y botones… ¡y hasta embocala en un inodoro!</p>
+    <p>Pistas de mini golf con rizos, rampas, jorobas, túneles, volcanes y puentes… ¡y hasta un inodoro! Embocá en la menor cantidad de golpes.</p>
     <div class="rules">
       <div class="rule"><span class="ic">👆</span><span>Apoyá el dedo en cualquier lugar, tirá hacia atrás (como una gomera) y soltá. Más largo = más fuerte.</span></div>
       <div class="rule"><span class="ic">🏌️</span><span>Dos palos: el <b>putter</b> hace rodar la pelota y el <b>hierro</b> la levanta por el aire. Ojo con el viento.</span></div>
@@ -192,147 +192,169 @@
   const $ = id => document.getElementById(id);
 
   // =====================================================================
-  //  CANCHAS (unidades: 100 de ancho × 160 de alto, y crece hacia abajo)
+  //  PISTAS (unidades: 100 de ancho × 160 de largo; y crece hacia el jugador)
   // =====================================================================
   const R = (x, y, w, h) => [[x, y], [x + w, y], [x + w, y + h], [x, y + h], [x, y]];
+  // Contorno de una pista: línea central ortogonal, ancho y (opcional) círculo final tipo "cerradura"
+  function lane(pts, w, endR) {
+    const hw = w / 2, n = pts.length;
+    const nrm = (a, b) => { const dx = b[0] - a[0], dy = b[1] - a[1], l = Math.hypot(dx, dy) || 1; return [dx / l, dy / l]; };
+    const left = [], right = [];
+    for (let i = 0; i < n; i++) {
+      let d;
+      if (i === 0) d = nrm(pts[0], pts[1]);
+      else if (i === n - 1) d = nrm(pts[n - 2], pts[n - 1]);
+      if (d) {
+        const nn = [-d[1], d[0]];
+        if (i === n - 1 && endR) break;
+        left.push([pts[i][0] + nn[0] * hw, pts[i][1] + nn[1] * hw]);
+        right.push([pts[i][0] - nn[0] * hw, pts[i][1] - nn[1] * hw]);
+      } else {
+        const d1 = nrm(pts[i - 1], pts[i]), d2 = nrm(pts[i], pts[i + 1]);
+        const n1 = [-d1[1], d1[0]], n2 = [-d2[1], d2[0]];
+        let m = [n1[0] + n2[0], n1[1] + n2[1]]; const ml = Math.hypot(m[0], m[1]) || 1; m = [m[0] / ml, m[1] / ml];
+        const k = hw / (m[0] * n1[0] + m[1] * n1[1]);
+        left.push([pts[i][0] + m[0] * k, pts[i][1] + m[1] * k]);
+        right.push([pts[i][0] - m[0] * k, pts[i][1] - m[1] * k]);
+      }
+    }
+    const out = left.slice();
+    if (endR) {
+      const c = pts[n - 1], d = nrm(pts[n - 2], c), nn = [-d[1], d[0]];
+      const s = Math.sqrt(Math.max(0, endR * endR - hw * hw));
+      const tA = Math.atan2(hw, -s), steps = 22;
+      for (let i = 0; i <= steps; i++) {
+        const th = tA - (2 * tA) * i / steps;
+        out.push([c[0] + d[0] * endR * Math.cos(th) + nn[0] * endR * Math.sin(th), c[1] + d[1] * endR * Math.cos(th) + nn[1] * endR * Math.sin(th)]);
+      }
+    }
+    for (let i = right.length - 1; i >= 0; i--) out.push(right[i]);
+    out.push(out[0]);
+    return out.map(([x, y]) => [Math.round(x * 100) / 100, Math.round(y * 100) / 100]);
+  }
+
   const THEMES = {
-    grass:   { name: 'Césped',          floor: 55 },
-    garden:  { name: 'Jardín',          floor: 55 },
-    bath:    { name: 'Baño',            floor: 40 },
-    kitchen: { name: 'Cocina',          floor: 46 },
-    toys:    { name: 'Cuarto de juegos', floor: 50 },
+    cancha:  { name: 'Cancha',           floor: 52 },
+    cesped:  { name: 'Césped',           floor: 52 },
+    ripio:   { name: 'Ripio',            floor: 52 },
+    patio:   { name: 'Patio',            floor: 52 },
+    bath:    { name: 'Baño',             floor: 46 },
+    kitchen: { name: 'Cocina',           floor: 50 },
+    toys:    { name: 'Cuarto de juegos', floor: 52 },
   };
   const LEVELS = [
-    { name: 'Primer golpe', theme: 'grass', par: 2, start: [50, 138], hole: { x: 50, y: 32, type: 'cup' },
-      walls: [R(25, 15, 50, 135)],
-      tip: [['👆', 'Apoyá el dedo, <b>tirá hacia atrás</b> y soltá. La línea muestra hacia dónde va.'], ['💪', 'Cuanto más largo el arrastre, más fuerte.'], ['⛳', 'Par 2: tratá de embocarla en 2 golpes o menos.']] },
-    { name: 'Usá las paredes', theme: 'grass', par: 3, start: [30, 138], hole: { x: 30, y: 35, type: 'cup' },
-      walls: [R(15, 15, 70, 135), [[15, 85], [60, 85]]],
-      tip: [['↩️', 'La pelota <b>rebota</b> en las paredes. Pasá por el hueco de la derecha o hacé una carambola.']] },
-    { name: 'Hongos saltarines', theme: 'grass', par: 2, start: [50, 140], hole: { x: 50, y: 32, type: 'cup' },
-      walls: [R(15, 15, 70, 135)],
-      bumpers: [{ x: 50, y: 100, r: 5, style: 'mushroom' }, { x: 33, y: 78, r: 4.5, style: 'mushroom' }, { x: 67, y: 78, r: 4.5, style: 'mushroom' }, { x: 50, y: 58, r: 4.5, style: 'mushroom' }],
-      tip: [['🍄', 'Los <b>hongos</b> rebotan fuerte: esquivalos o usalos para desviarte.']] },
-    { name: 'El tobogán', theme: 'grass', par: 3, start: [30, 140], hole: { x: 66, y: 30, type: 'cup' },
-      walls: [R(15, 95, 70, 55), R(15, 15, 70, 68)],
-      tubes: [{ a: [72, 108], b: [28, 74], dir: [0, -1], speed: 45, color: '#ff6b6b' }],
-      tip: [['🛝', 'El hoyo está en otra cancha. Meté la pelota en la <b>boca del tobogán</b> y sale del otro lado.']] },
-    { name: 'La cuesta', theme: 'grass', par: 2, start: [50, 140], hole: { x: 50, y: 30, type: 'cup' },
-      walls: [R(15, 15, 70, 135)],
-      zones: [{ type: 'slope', rect: [15, 55, 70, 40], dir: [0, 1], f: 85 }],
-      tip: [['⛰️', 'La <b>cuesta</b> empuja la pelota para abajo: pegale con ganas.']] },
-    { name: 'El estanque', theme: 'garden', par: 3, start: [50, 142], hole: { x: 58, y: 32, type: 'cup' },
-      walls: [R(10, 15, 80, 135)],
-      zones: [{ type: 'water', circle: [50, 88, 24] }, { type: 'bridge', rect: [45, 62, 10, 52] }, { type: 'sand', rect: [28, 28, 16, 13] }],
-      tip: [['🏌️', '¡Nuevo palo! Con el <b>hierro</b> la pelota <b>vuela</b> por encima del agua y la arena (no de las paredes). Cambiá de palo con los botones de abajo.'], ['💧', 'Si cae al <b>agua</b>, vuelve adonde le pegaste y suma 1 golpe.'], ['🌉', 'El puente es angosto… o rodeá el estanque.'], ['🏖️', 'La <b>arena</b> frena muchísimo.']] },
-    { name: 'Lomas y pozos', theme: 'garden', par: 3, start: [50, 142], hole: { x: 63, y: 34, type: 'cup' },
-      walls: [R(15, 15, 70, 135)],
-      zones: [{ type: 'mound', circle: [34, 100, 15], f: 75 }, { type: 'mound', circle: [66, 76, 15], f: 75 }, { type: 'bowl', circle: [40, 44, 15], f: 60 }, { type: 'mound', circle: [64, 52, 9], f: 70 }],
-      tip: [['⛰️', 'Las <b>lomas</b> desvían la pelota hacia los costados.'], ['🥣', 'Los <b>pozos</b> la atrapan: si cae, cuesta salir.'], ['🏌️', 'Con el hierro podés pasar por arriba del relieve.']] },
-    { name: 'La mesa alta', theme: 'garden', par: 3, start: [50, 142], hole: { x: 50, y: 33, type: 'cup', plat: 0 },
-      walls: [R(15, 15, 70, 135)],
-      plats: [{ rect: [30, 22, 40, 24], h: 6, style: 'table' }],
-      zones: [{ type: 'mound', circle: [50, 92, 14], f: 70 }],
-      tip: [['🪜', 'El hoyo está <b>arriba de la mesa</b>. Rodando no se sube: <b>levantá la pelota con el hierro</b>.'], ['🎯', 'La marca muestra dónde cae. Si te pasás, se cae del otro lado.']] },
-    { name: 'El molino', theme: 'garden', par: 3, start: [50, 140], hole: { x: 50, y: 32, type: 'cup' },
-      walls: [R(20, 15, 60, 135), [[20, 72], [39, 72]], [[61, 72], [80, 72]]],
-      movers: [{ type: 'mill', x: 50, y: 72, len: 14, w: 1.4, ph: 0 }], wind: 1,
-      tip: [['💨', '<b>Viento</b>: mirá la flecha de arriba. Desvía mucho la pelota cuando vuela (hierro) y un poco cuando rueda.'], ['🌬️', 'Las <b>aspas del molino</b> tapan el paso. Esperá el momento justo para pegarle.']] },
-    { name: 'La compuerta', theme: 'garden', par: 3, start: [32, 140], hole: { x: 50, y: 34, type: 'cup' },
-      walls: [R(15, 15, 70, 135), [[15, 70], [40, 70]], [[60, 70], [85, 70]]],
-      gates: [{ id: 'g1', seg: [[40, 70], [60, 70]] }],
-      buttons: [{ x: 76, y: 106, r: 3.6, gate: 'g1' }],
-      bumpers: [{ x: 47, y: 104, r: 4, style: 'rock' }], wind: 2,
-      tip: [['🔴', 'La compuerta está cerrada. <b>Pegale al botón rojo</b> para abrirla.']] },
-    { name: '¡Al inodoro!', theme: 'bath', par: 3, start: [28, 140], hole: { x: 64, y: 30, type: 'toilet' },
-      walls: [R(15, 15, 70, 135)],
-      blocks: [{ x: 15, y: 62, w: 30, h: 40, style: 'tub' }, { x: 66, y: 108, w: 19, h: 14, style: 'sink' }],
-      bumpers: [{ x: 60, y: 80, r: 3.5, style: 'roll' }, { x: 72, y: 62, r: 3.5, style: 'roll' }], wind: 1,
-      tip: [['🌀', 'Adentro de la casa hay un <b>ventilador</b>: empuja igual que el viento.'], ['🚽', '¡Ahora el hoyo es un <b>inodoro</b>!'], ['🧻', 'El piso de baño es más resbaloso y los rollos de papel rebotan.']] },
-    { name: 'Patitos y jabón', theme: 'bath', par: 3, start: [50, 142], hole: { x: 38, y: 32, type: 'toilet' },
-      walls: [R(15, 15, 70, 135), [[35, 60], [35, 108], [15, 108]], [[65, 60], [65, 108], [85, 108]]],
-      pushables: [{ x: 45, y: 86, r: 4, style: 'duck' }, { x: 56, y: 75, r: 4, style: 'duck' }],
-      zones: [{ type: 'ice', rect: [35, 108, 30, 16] }, { type: 'water', rect: [66, 38, 19, 18] }], wind: 1,
-      tip: [['🦆', 'Los <b>patitos</b> se pueden empujar: sacalos del camino.'], ['🧼', 'El <b>jabón</b> resbala muchísimo.'], ['💧', 'Ojo con el charco.']] },
-    { name: 'El inodoro en el escalón', theme: 'bath', par: 3, start: [30, 140], hole: { x: 64, y: 30, type: 'toilet', plat: 0 },
-      walls: [R(15, 15, 70, 135)],
-      plats: [{ rect: [46, 19, 36, 28], h: 5, style: 'step' }],
-      blocks: [{ x: 15, y: 62, w: 26, h: 38, style: 'tub' }],
-      pushables: [{ x: 56, y: 88, r: 4, style: 'duck' }],
+    { name: 'La recta', theme: 'cancha', rail: 'yellow', par: 2, start: [50, 146], hole: { x: 50, y: 42, type: 'cup' },
+      walls: [lane([[50, 154], [50, 42]], 24, 16)],
+      tip: [['👆', 'Apoyá el dedo, <b>tirá hacia atrás</b> (como una gomera) y soltá. La línea muestra hacia dónde va.'], ['💪', 'Cuanto más largo el arrastre, más fuerte.'], ['⛳', 'Par 2: tratá de embocarla en 2 golpes o menos.']] },
+    { name: 'La ele', theme: 'cesped', rail: 'red', par: 3, start: [30, 146], hole: { x: 70, y: 46, type: 'cup' },
+      walls: [lane([[30, 154], [30, 46], [70, 46]], 24, 16)],
+      tip: [['↩️', 'La pelota <b>rebota</b> en los bordes: usalos para doblar la esquina.']] },
+    { name: 'Los postes', theme: 'patio', rail: 'blue', par: 2, start: [50, 146], hole: { x: 50, y: 40, type: 'cup' },
+      walls: [lane([[50, 154], [50, 40]], 26, 16)],
+      bumpers: [{ x: 43, y: 96, r: 2.8, style: 'peg', color: '#ef4444' }, { x: 57, y: 96, r: 2.8, style: 'peg', color: '#1e63d6' }, { x: 50, y: 78, r: 2.8, style: 'peg', color: '#facc15' }, { x: 42, y: 62, r: 2.8, style: 'peg', color: '#1e63d6' }, { x: 58, y: 62, r: 2.8, style: 'peg', color: '#ef4444' }],
+      tip: [['🔴', 'Los <b>postes de colores</b> desvían la pelota: buscá el hueco.']] },
+    { name: 'Las jorobas', theme: 'cesped', rail: 'red', par: 2, start: [50, 146], hole: { x: 50, y: 40, type: 'cup' },
+      walls: [lane([[50, 154], [50, 40]], 24, 16)],
+      zones: [{ type: 'waves', rect: [38, 70, 24, 36], dir: [0, -1], n: 2, f: 95 }],
+      tip: [['〰️', 'Las <b>jorobas</b> frenan la pelota al subir. Si le pegás despacio, se queda en el pozo del medio.']] },
+    { name: 'La caja túnel', theme: 'cancha', rail: 'yellow', par: 2, start: [50, 146], hole: { x: 50, y: 40, type: 'cup' },
+      walls: [lane([[50, 154], [50, 40]], 26, 16)],
+      tunnels: [{ x: 37, y: 84, w: 26, h: 12, gap: 9, off: 3 }],
+      tip: [['📦', 'Pasá por el <b>túnel de la caja</b>: el hueco es justito.']] },
+    { name: 'El rizo', theme: 'ripio', rail: 'wood', par: 2, start: [50, 146], hole: { x: 50, y: 40, type: 'cup' },
+      walls: [lane([[50, 154], [50, 40]], 26, 16)],
+      loops: [{ x: 50, y: 100, dir: [0, -1], len: 12, w: 4.8, vmin: 70, lane: 13 }],
+      tip: [['➰', 'El <b>rizo</b>: si le pegás con poca fuerza, la pelota no da la vuelta y vuelve.']] },
+    { name: 'La rampa', theme: 'cesped', rail: 'blue', par: 2, start: [50, 146], hole: { x: 50, y: 36, type: 'cup' },
+      walls: [lane([[50, 154], [50, 36]], 24, 16)],
+      ramps: [{ x: 50, y: 104, dir: [0, -1], len: 10, w: 12, h: 5 }],
+      zones: [{ type: 'water', rect: [38, 74, 24, 18] }],
+      tip: [['🛫', 'Subí la <b>rampa</b> con fuerza para saltar el agua.'], ['💧', 'Si cae al agua, vuelve adonde le pegaste y suma 1 golpe.']] },
+    { name: 'El volcán', theme: 'patio', rail: 'red', par: 3, start: [50, 146], hole: { x: 50, y: 42, type: 'cup' },
+      walls: [lane([[50, 154], [50, 42]], 24, 19)],
+      zones: [{ type: 'mound', circle: [50, 42, 13], f: 110, style: 'volcano' }],
+      tip: [['🌋', 'El hoyo está en la punta del <b>volcán</b>: con poca fuerza se cae para abajo, con mucha se pasa.']] },
+    { name: 'Zigzag', theme: 'ripio', rail: 'yellow', par: 3, start: [26, 146], hole: { x: 74, y: 40, type: 'cup' },
+      walls: [lane([[26, 154], [26, 100], [74, 100], [74, 40]], 22, 15)],
+      bumpers: [{ x: 50, y: 100, r: 2.8, style: 'peg', color: '#ef4444' }],
+      tip: [['⚡', 'Pista en <b>zigzag</b>: dos esquinas. Pensá los rebotes.']] },
+    { name: 'El puente', theme: 'cesped', rail: 'blue', par: 3, start: [50, 146], hole: { x: 50, y: 38, type: 'cup' },
+      walls: [lane([[50, 154], [50, 38]], 26, 16)],
+      zones: [{ type: 'water', rect: [37, 72, 26, 26] }, { type: 'bridge', rect: [46, 70, 8, 30], style: 'suspension' }],
+      tip: [['🌉', 'Cruzá el <b>puente</b> angosto… o probá el palo nuevo.'], ['🏌️', '¡Nuevo palo! Con el <b>hierro</b> la pelota vuela por encima del agua (no de los bordes). Cambiá de palo con los botones de abajo.']] },
+    { name: 'El molino', theme: 'cancha', rail: 'red', par: 3, start: [50, 146], hole: { x: 50, y: 38, type: 'cup' },
+      walls: [lane([[50, 154], [50, 38]], 30, 17), [[35, 86], [42, 86]], [[58, 86], [65, 86]]],
+      movers: [{ type: 'mill', x: 50, y: 86, len: 10, w: 1.4, ph: 0 }],
       wind: 1,
-      tip: [['🚽', 'El inodoro está <b>arriba de un escalón</b>: hay que embocarla por el aire con el hierro.'], ['🌀', 'Ojo con el ventilador.']] },
-    { name: 'Por la bañera', theme: 'bath', par: 3, start: [50, 142], hole: { x: 72, y: 30, type: 'toilet' },
-      walls: [R(10, 15, 80, 135), [[10, 50], [90, 50]], [[40, 98], [22, 98], [22, 62], [78, 62], [78, 98], [60, 98]]],
-      zones: [{ type: 'ice', rect: [22, 62, 56, 36], style: 'tubwater' }],
-      tubes: [{ a: [50, 72], b: [20, 32], dir: [1, 0], speed: 40, color: '#7fd1ff', drain: true }], wind: 2,
-      tip: [['🛁', 'El inodoro está del otro lado de la pared. Entrá a la <b>bañera</b> y meté la pelota por el <b>desagüe</b>.']] },
-    { name: 'Cintas de la cocina', theme: 'kitchen', par: 3, start: [50, 142], hole: { x: 50, y: 30, type: 'pot' },
-      walls: [R(15, 15, 70, 135)],
-      zones: [{ type: 'belt', rect: [15, 98, 70, 14], dir: [1, 0], f: 70 }, { type: 'belt', rect: [15, 58, 70, 14], dir: [-1, 0], f: 90 }],
-      bumpers: [{ x: 30, y: 85, r: 3.5, style: 'cup' }, { x: 70, y: 85, r: 3.5, style: 'cup' }], wind: 1,
-      tip: [['🍲', 'El hoyo es una <b>olla</b>.'], ['➡️', 'Las <b>cintas</b> arrastran la pelota para el costado: apuntá compensando.']] },
-    { name: 'Sobre la mesada', theme: 'kitchen', par: 3, start: [50, 142], hole: { x: 60, y: 26, type: 'pot', plat: 0 },
-      walls: [R(15, 15, 70, 135)],
-      plats: [{ rect: [15, 15, 70, 23], h: 7, style: 'counter' }],
-      zones: [{ type: 'belt', rect: [15, 70, 70, 14], dir: [1, 0], f: 70 }],
-      bumpers: [{ x: 35, y: 102, r: 3.5, style: 'cup' }, { x: 66, y: 108, r: 3.5, style: 'cup' }],
+      tip: [['🌬️', 'Esperá a que las aspas del <b>molino</b> dejen pasar.'], ['💨', '<b>Viento</b>: mirá la flecha de arriba. Desvía mucho la pelota cuando vuela y un poco cuando rueda.']] },
+    { name: '¡Al inodoro!', theme: 'bath', rail: 'white', par: 3, start: [30, 146], hole: { x: 70, y: 44, type: 'toilet' },
+      walls: [lane([[30, 154], [30, 100], [70, 100], [70, 44]], 24, 17)],
+      bumpers: [{ x: 30, y: 118, r: 3.2, style: 'roll' }, { x: 66, y: 76, r: 3.2, style: 'roll' }],
       wind: 1,
-      tip: [['🍲', 'La olla está <b>sobre la mesada</b>, bien alta. Acercate y levantala con el hierro.']] },
-    { name: 'Sartenes', theme: 'kitchen', par: 3, start: [50, 142], hole: { x: 56, y: 30, type: 'pot' },
-      walls: [R(15, 15, 70, 135)],
-      blocks: [{ x: 15, y: 15, w: 16, h: 22, style: 'fridge' }],
-      movers: [{ type: 'slide', a: [30, 98], b: [70, 98], len: 14, period: 3.2, ph: 0 }, { type: 'slide', a: [70, 66], b: [30, 66], len: 14, period: 2.6, ph: 1.2 }],
-      bumpers: [{ x: 26, y: 50, r: 3.5, style: 'cup' }, { x: 76, y: 46, r: 3.5, style: 'cup' }], wind: 2,
-      tip: [['🍳', 'Las <b>sartenes</b> van y vienen: calculá cuándo pasar.']] },
-    { name: 'Dos toboganes', theme: 'toys', par: 3, start: [50, 140], hole: { x: 74, y: 30, type: 'toybox' },
-      walls: [R(10, 15, 80, 135), [[10, 82], [90, 82]]],
-      tubes: [{ a: [26, 100], b: [16, 62], dir: [1, 0], speed: 38, color: '#ffd23f' }, { a: [74, 100], b: [50, 146], dir: [0, -1], speed: 12, color: '#c56cf0' }],
-      blocks: [{ x: 40, y: 38, w: 9, h: 9, style: 'toyblock' }, { x: 55, y: 56, w: 9, h: 9, style: 'toyblock' }], wind: 2,
-      tip: [['🛝', 'Hay dos toboganes… <b>uno te devuelve al principio</b>. Seguí los colores.'], ['🧸', 'El hoyo es la <b>caja de juguetes</b>.']] },
-    { name: 'Gran final', theme: 'toys', par: 5, start: [70, 140], hole: { x: 70, y: 30, type: 'toybox' },
-      walls: [R(10, 15, 80, 135), [[10, 110], [42, 110]], [[58, 110], [90, 110]], [[10, 70], [40, 70]], [[60, 70], [90, 70]]],
-      gates: [{ id: 'g1', seg: [[42, 110], [58, 110]] }],
-      buttons: [{ x: 20, y: 130, r: 3.6, gate: 'g1' }],
-      zones: [{ type: 'slope', rect: [30, 118, 26, 26], dir: [1, 0], f: 45 }],
-      movers: [{ type: 'mill', x: 50, y: 70, len: 14, w: 1.8, ph: 0.6 }],
-      tubes: [{ a: [82, 90], b: [16, 40], dir: [1, 0], speed: 30, color: '#4ade80' }],
-      bumpers: [{ x: 44, y: 38, r: 4, style: 'ballpit' }, { x: 58, y: 47, r: 4, style: 'ballpit' }], wind: 3,
-      tip: [['🏁', 'Todo junto: <b>botón</b>, <b>molino</b>, <b>tobogán</b> y una <b>cuesta</b>. Par 5.']] },
+      tip: [['🚽', 'Mini golf en el baño: ¡el hoyo es un <b>inodoro</b>!'], ['🌀', 'Adentro de la casa hay un <b>ventilador</b>: empuja igual que el viento.']] },
+    { name: 'El tobogán', theme: 'toys', rail: 'yellow', par: 3, start: [28, 146], hole: { x: 72, y: 40, type: 'toybox' },
+      walls: [lane([[28, 154], [28, 70]], 22, 13), lane([[72, 120], [72, 40]], 22, 15)],
+      tubes: [{ a: [28, 74], b: [72, 112], dir: [0, -1], speed: 42, color: '#facc15' }],
+      tip: [['🛝', 'Son dos pistas: metela en el <b>tobogán amarillo</b> y aparece en la otra.']] },
+    { name: 'La olla', theme: 'kitchen', rail: 'wood', par: 3, start: [26, 146], hole: { x: 72, y: 46, type: 'pot' },
+      walls: [lane([[26, 154], [26, 46], [72, 46]], 24, 16)],
+      zones: [{ type: 'waves', rect: [14, 82, 24, 26], dir: [0, -1], n: 1, f: 90 }, { type: 'belt', rect: [44, 34, 12, 24], dir: [0, 1], f: 60 }],
+      wind: 1,
+      tip: [['🍲', 'En la cocina el hoyo es una <b>olla</b>.'], ['➡️', 'La <b>cinta</b> arrastra la pelota.']] },
+    { name: 'Hoyo en altura', theme: 'patio', rail: 'blue', par: 3, start: [50, 146], hole: { x: 50, y: 40, type: 'cup', plat: 0 },
+      walls: [lane([[50, 154], [50, 40]], 26, 19)],
+      plats: [{ rect: [39, 30, 22, 20], h: 5, style: 'green' }],
+      wind: 1,
+      tip: [['🪜', 'El hoyo está <b>arriba de un escalón</b>: rodando no se sube, levantá la pelota con el <b>hierro</b>.']] },
   ];
 
-  // Niveles 20 a 50: armados con un generador y verificados jugándolos con la máquina
+  // Niveles 16 a 60: armados con un generador y verificados jugándolos con la máquina
   LEVELS.push(
-    {"theme":"garden","walls":[[[15,15],[85,15],[85,150],[15,150],[15,15]]],"zones":[{"type":"mound","circle":[34.7,63.6,13],"f":72.8}],"bumpers":[{"x":38.8,"y":86.3,"r":4.7,"style":"rock"},{"x":58.2,"y":115.9,"r":5,"style":"mushroom"}],"wind":0,"start":[59.7,141],"hole":{"x":44.8,"y":36.1,"type":"cup"},"name":"El recorrido del jardín","tip":[["⛰️","<b>Lomas</b> que desvían y <b>pozos</b> que atrapan."]],"par":3},
-    {"theme":"garden","walls":[[[10,15],[90,15],[90,150],[10,150],[10,15]],[[10,93.5],[47.1,93.5]],[[70.3,93.5],[90,93.5]]],"zones":[{"type":"water","circle":[48,110.4,11.8]}],"bumpers":[{"x":50,"y":75.4,"r":4.3,"style":"mushroom"}],"movers":[{"type":"mill","x":58.7,"y":93.5,"len":15,"w":1.3,"ph":1.5}],"wind":0,"start":[71.9,141],"hole":{"x":58,"y":37.1,"type":"cup"},"name":"El molino del jardín","tip":[["🌬️","Esperá a que las aspas del <b>molino</b> dejen pasar."],["💧","Ojo con el <b>agua</b>: +1 golpe."]],"par":3},
-    {"theme":"garden","walls":[[[15,15],[85,15],[85,150],[15,150],[15,15]],[[39,111.5],[85,111.5]],[[15,69],[61,69]]],"zones":[{"type":"water","circle":[69.3,89.1,10.3]}],"bumpers":[{"x":31,"y":81.9,"r":3.8,"style":"mushroom"},{"x":48.3,"y":52.8,"r":4.9,"style":"rock"}],"wind":0,"start":[36.3,141],"hole":{"x":52.2,"y":33.6,"type":"cup"},"name":"La serpiente del jardín","tip":[["↩️","Zigzag: usá los rebotes o pasá por arriba con el hierro… si no hay pared alta."],["💧","Ojo con el <b>agua</b>: +1 golpe."]],"par":2},
-    {"theme":"garden","walls":[[[10,15],[90,15],[90,150],[10,150],[10,15]],[[10,91.1],[90,91.1]]],"zones":[{"type":"water","circle":[26.1,121,10.1]},{"type":"bowl","circle":[53.4,56.9,12.6],"f":79.1}],"tubes":[{"a":[47.8,126.4],"b":[16,68],"dir":[1,0],"speed":38.9,"color":"#7fd1ff"}],"wind":1,"start":[60.6,141],"hole":{"x":73.9,"y":37.7,"type":"cup"},"name":"Dos ambientes del jardín","tip":[["🛝","Usá el <b>tobogán</b> para pasar al otro lado."],["💧","Ojo con el <b>agua</b>: +1 golpe."],["⛰️","<b>Lomas</b> que desvían y <b>pozos</b> que atrapan."]],"par":4},
-    {"theme":"garden","walls":[[[10,15],[90,15],[90,150],[10,150],[10,15]]],"zones":[{"type":"water","circle":[27,119.2,11.7]},{"type":"mound","circle":[54.7,101.6,12.2],"f":56}],"bumpers":[{"x":39.7,"y":84.8,"r":3.5,"style":"mushroom"}],"plats":[{"rect":[23.599999999999998,20.55,29.4,19.1],"h":5.9,"style":"table"}],"wind":1,"start":[69.5,141],"hole":{"x":38.3,"y":30.1,"type":"cup","plat":0},"name":"Hoyo en altura del jardín","tip":[["🪜","Hoyo elevado: rodando no se sube, levantá la pelota con el <b>hierro</b>."],["💧","Ojo con el <b>agua</b>: +1 golpe."],["⛰️","<b>Lomas</b> que desvían y <b>pozos</b> que atrapan."]],"par":3},
-    {"theme":"garden","walls":[[[12,15],[88,15],[88,150],[12,150],[12,15]],[[12,83.5],[21.5,83.5]],[[43.3,83.5],[88,83.5]]],"zones":[{"type":"bowl","circle":[48.3,111.8,11.4],"f":63.2},{"type":"mound","circle":[66.1,55.7,12.2],"f":68.2}],"bumpers":[{"x":26,"y":117,"r":4,"style":"rock"}],"wind":0,"start":[65.9,141],"hole":{"x":49.4,"y":35.2,"type":"cup"},"name":"La pared del jardín","tip":[["⛰️","<b>Lomas</b> que desvían y <b>pozos</b> que atrapan."]],"par":2},
-    {"theme":"bath","walls":[[[15,15],[85,15],[85,150],[15,150],[15,15]]],"bumpers":[{"x":76.1,"y":73.3,"r":3.5,"style":"roll"},{"x":22.9,"y":79.4,"r":3.5,"style":"roll"}],"blocks":[{"x":29.799999999999997,"y":110.8,"w":18,"h":14,"style":"sink"}],"pushables":[{"x":62.6,"y":111.7,"r":4,"style":"duck"}],"wind":0,"start":[34.5,141],"hole":{"x":36.3,"y":34.6,"type":"toilet"},"name":"Campo minado del baño","tip":[["🦆","<b>Patitos</b> para empujar."]],"par":4},
-    {"theme":"bath","walls":[[[12,15],[88,15],[88,150],[12,150],[12,15]],[[12,90.7],[31.8,90.7]],[[53.2,90.7],[88,90.7]]],"zones":[{"type":"ice","rect":[43.3,57.5,22,14]}],"bumpers":[{"x":23.8,"y":48.7,"r":3.5,"style":"roll"}],"blocks":[{"x":50.5,"y":99,"w":18,"h":14,"style":"sink"}],"movers":[{"type":"mill","x":42.5,"y":90.7,"len":14,"w":-1.2,"ph":5.9}],"wind":1,"start":[47.8,141],"hole":{"x":38.5,"y":30,"type":"toilet"},"name":"El molino del baño","tip":[["🌬️","Esperá a que las aspas del <b>molino</b> dejen pasar."],["🧼","<b>Jabón</b> resbaloso."],["💨","Un poco de ventilador."]],"par":3},
-    {"theme":"bath","walls":[[[15,15],[85,15],[85,150],[15,150],[15,15]],[[39,102.8],[85,102.8]],[[15,62.2],[61,62.2]]],"bumpers":[{"x":24.6,"y":126.6,"r":3.5,"style":"roll"}],"blocks":[{"x":35.5,"y":70.1,"w":18,"h":14,"style":"sink"}],"pushables":[{"x":59.2,"y":120.3,"r":4,"style":"duck"},{"x":46.8,"y":115.8,"r":4,"style":"duck"}],"wind":1,"start":[35.5,141],"hole":{"x":43.6,"y":29.4,"type":"toilet"},"name":"Zigzag del baño","tip":[["↩️","Zigzag: usá los rebotes o pasá por arriba con el hierro… si no hay pared alta."],["🦆","<b>Patitos</b> para empujar."],["💨","Un poco de ventilador."]],"par":5},
-    {"theme":"bath","walls":[[[12,15],[88,15],[88,150],[12,150],[12,15]],[[12,86.6],[88,86.6]]],"zones":[{"type":"water","rect":[17,58.2,18,12]},{"type":"water","rect":[36.5,56.8,18,12]}],"bumpers":[{"x":45.8,"y":113,"r":3.5,"style":"roll"}],"tubes":[{"a":[64.6,114],"b":[82,50],"dir":[-1,0],"speed":38.5,"color":"#ffd23f"}],"wind":2,"start":[28.4,141],"hole":{"x":46.8,"y":28.9,"type":"toilet"},"name":"El atajo del baño","tip":[["🛝","Usá el <b>tobogán</b> para pasar al otro lado."],["💧","Ojo con el <b>agua</b>: +1 golpe."],["💨","Bastante ventilador."]],"par":3},
-    {"theme":"bath","walls":[[[10,15],[90,15],[90,150],[10,150],[10,15]]],"zones":[{"type":"ice","rect":[48.5,102.8,22,14]}],"bumpers":[{"x":22,"y":77.3,"r":3.5,"style":"roll"},{"x":38.9,"y":103.2,"r":3.5,"style":"roll"}],"pushables":[{"x":70.4,"y":96.6,"r":4,"style":"duck"}],"plats":[{"rect":[49.55,17.55,28.7,22.5],"h":6.7,"style":"step"}],"wind":1,"start":[68.6,141],"hole":{"x":63.9,"y":28.8,"type":"toilet","plat":0},"name":"Arriba de todo del baño","tip":[["🪜","Hoyo elevado: rodando no se sube, levantá la pelota con el <b>hierro</b>."],["🦆","<b>Patitos</b> para empujar."],["🧼","<b>Jabón</b> resbaloso."]],"par":3},
-    {"theme":"bath","walls":[[[15,15],[85,15],[85,150],[15,150],[15,15]],[[15,89.5],[24.95,89.5]],[[46.849999999999994,89.5],[85,89.5]]],"zones":[{"type":"water","rect":[63.599999999999994,113.5,18,12]},{"type":"water","rect":[25.9,47.1,18,12]}],"bumpers":[{"x":24.5,"y":122.2,"r":3.5,"style":"roll"}],"gates":[{"id":"g1","seg":[[24.95,89.5],[46.849999999999994,89.5]]}],"buttons":[{"x":26.3,"y":106.7,"r":3.6,"gate":"g1"}],"pushables":[{"x":72.9,"y":55.2,"r":4,"style":"duck"}],"wind":1,"start":[57.9,141],"hole":{"x":40.2,"y":29.7,"type":"toilet"},"name":"La compuerta del baño","tip":[["🔴","Pegale al <b>botón</b> para abrir la compuerta."],["💧","Ojo con el <b>agua</b>: +1 golpe."],["🦆","<b>Patitos</b> para empujar."]],"par":5},
-    {"theme":"kitchen","walls":[[[10,15],[90,15],[90,150],[10,150],[10,15]],[[34,103.5],[90,103.5]],[[10,69.9],[66,69.9]]],"bumpers":[{"x":38.1,"y":50.1,"r":3.5,"style":"cup"},{"x":31.9,"y":113.6,"r":3.5,"style":"cup"},{"x":19.9,"y":83.2,"r":3.5,"style":"cup"},{"x":73.8,"y":114.9,"r":3.5,"style":"cup"}],"movers":[{"type":"slide","a":[20,124.4],"b":[80,124.4],"len":13.4,"period":3.1,"ph":3}],"wind":2,"start":[36.2,141],"hole":{"x":38.2,"y":31.5,"type":"pot"},"name":"Zigzag de la cocina","tip":[["↩️","Zigzag: usá los rebotes o pasá por arriba con el hierro… si no hay pared alta."],["🍳","<b>Sartenes</b> que van y vienen."],["💨","Bastante ventilador."]],"par":3},
-    {"theme":"kitchen","walls":[[[10,15],[90,15],[90,150],[10,150],[10,15]],[[10,77.9],[26.049999999999997,77.9]],[[48.55,77.9],[90,77.9]]],"zones":[{"type":"belt","rect":[10,92.7,80,15.5],"dir":[1,0],"f":68}],"bumpers":[{"x":74,"y":64.1,"r":3.5,"style":"cup"},{"x":57.6,"y":68.8,"r":3.5,"style":"cup"}],"movers":[{"type":"slide","a":[20,58.1],"b":[80,58.1],"len":14.7,"period":3.1,"ph":2.8}],"gates":[{"id":"g1","seg":[[26.049999999999997,77.9],[48.55,77.9]]}],"buttons":[{"x":52.3,"y":121.5,"r":3.6,"gate":"g1"}],"wind":1,"start":[36.6,141],"hole":{"x":30,"y":37.4,"type":"pot"},"name":"La compuerta de la cocina","tip":[["🔴","Pegale al <b>botón</b> para abrir la compuerta."],["➡️","Las <b>cintas</b> arrastran la pelota."],["🍳","<b>Sartenes</b> que van y vienen."]],"par":3},
-    {"theme":"kitchen","walls":[[[15,15],[85,15],[85,150],[15,150],[15,15]],[[15,99.4],[61,99.4]],[[39,60.8],[85,60.8]]],"zones":[{"type":"belt","rect":[15,76.7,70,12.5],"dir":[-1,0],"f":59}],"bumpers":[{"x":61.4,"y":123.5,"r":3.5,"style":"cup"},{"x":37.3,"y":113.4,"r":3.5,"style":"cup"},{"x":40.8,"y":70.3,"r":3.5,"style":"cup"},{"x":46.8,"y":109.3,"r":3.5,"style":"cup"}],"wind":2,"start":[53,141],"hole":{"x":41.8,"y":34.8,"type":"pot"},"name":"Ida y vuelta de la cocina","tip":[["↩️","Zigzag: usá los rebotes o pasá por arriba con el hierro… si no hay pared alta."],["➡️","Las <b>cintas</b> arrastran la pelota."],["💨","Bastante ventilador."]],"par":3},
-    {"theme":"kitchen","walls":[[[15,15],[85,15],[85,150],[15,150],[15,15]],[[15,87],[85,87]]],"bumpers":[{"x":49.2,"y":74.5,"r":3.5,"style":"cup"},{"x":52,"y":116.2,"r":3.5,"style":"cup"},{"x":49.6,"y":57.5,"r":3.5,"style":"cup"},{"x":62.1,"y":123.2,"r":3.5,"style":"cup"}],"movers":[{"type":"slide","a":[25,103.8],"b":[75,103.8],"len":14.5,"period":2.9,"ph":3.8}],"tubes":[{"a":[43.7,100.7],"b":[79,50.9],"dir":[-1,0],"speed":34.6,"color":"#ffd23f"},{"a":[29.7,108.8],"b":[32.6,147],"dir":[0,-1],"speed":12,"color":"#c56cf0"}],"wind":2,"start":[32.6,141],"hole":{"x":36.5,"y":30,"type":"pot"},"name":"Tobogán secreto de la cocina","tip":[["🛝","Hay dos toboganes: <b>uno te devuelve al principio</b>."],["🍳","<b>Sartenes</b> que van y vienen."],["💨","Bastante ventilador."]],"par":3},
-    {"theme":"kitchen","walls":[[[10,15],[90,15],[90,150],[10,150],[10,15]]],"bumpers":[{"x":25.3,"y":48.4,"r":3.5,"style":"cup"},{"x":66.9,"y":100.4,"r":3.5,"style":"cup"},{"x":20.5,"y":77.3,"r":3.5,"style":"cup"}],"blocks":[{"x":54.8,"y":70,"w":16,"h":20,"style":"fridge"}],"movers":[{"type":"slide","a":[20,114.4],"b":[80,114.4],"len":13.1,"period":2.6,"ph":1.9}],"plats":[{"rect":[48.89999999999999,25.699999999999996,32.4,19.2],"h":6.5,"style":"counter"}],"wind":1,"start":[69.4,141],"hole":{"x":65.1,"y":35.3,"type":"pot","plat":0},"name":"Hoyo en altura de la cocina","tip":[["🪜","Hoyo elevado: rodando no se sube, levantá la pelota con el <b>hierro</b>."],["🍳","<b>Sartenes</b> que van y vienen."],["💨","Un poco de ventilador."]],"par":3},
-    {"theme":"kitchen","walls":[[[10,15],[90,15],[90,150],[10,150],[10,15]],[[10,82.4],[56.45,82.4]],[[77.35000000000001,82.4],[90,82.4]]],"zones":[{"type":"belt","rect":[10,53.8,80,16.7],"dir":[-1,0],"f":76.2}],"bumpers":[{"x":46.6,"y":111.6,"r":3.5,"style":"cup"},{"x":48.9,"y":57.7,"r":3.5,"style":"cup"},{"x":29.4,"y":65.6,"r":3.5,"style":"cup"}],"movers":[{"type":"slide","a":[20,97.9],"b":[80,97.9],"len":12.1,"period":2.8,"ph":5.3}],"gates":[{"id":"g1","seg":[[56.45,82.4],[77.35000000000001,82.4]]}],"buttons":[{"x":56.9,"y":117.6,"r":3.6,"gate":"g1"}],"wind":2,"start":[67.1,141],"hole":{"x":72.6,"y":36.2,"type":"pot"},"name":"La compuerta de la cocina III","tip":[["🔴","Pegale al <b>botón</b> para abrir la compuerta."],["➡️","Las <b>cintas</b> arrastran la pelota."],["🍳","<b>Sartenes</b> que van y vienen."]],"par":4},
-    {"theme":"toys","walls":[[[10,15],[90,15],[90,150],[10,150],[10,15]]],"zones":[{"type":"slope","rect":[10,109.9,80,16.4],"dir":[-1,0],"f":69.8}],"bumpers":[{"x":30.2,"y":63.3,"r":3.5,"style":"ballpit"},{"x":51.7,"y":119.7,"r":3.6,"style":"ballpit"},{"x":39.6,"y":84.7,"r":4.2,"style":"ballpit"}],"blocks":[{"x":47.8,"y":70.5,"w":9,"h":9,"style":"toyblock"}],"wind":2,"start":[43.9,141],"hole":{"x":70.4,"y":28.2,"type":"toybox"},"name":"Paseo de juguete","tip":[["⛰️","Una <b>cuesta</b> empuja la pelota."],["💨","Bastante ventilador."]],"par":3},
-    {"theme":"toys","walls":[[[10,15],[90,15],[90,150],[10,150],[10,15]],[[10,72.8],[31.849999999999998,72.8]],[[54.75,72.8],[90,72.8]]],"zones":[{"type":"mound","circle":[68.7,92.7,12.8],"f":62.3}],"bumpers":[{"x":44.6,"y":126.4,"r":4.2,"style":"ballpit"}],"blocks":[{"x":54.7,"y":114.3,"w":9,"h":9,"style":"toyblock"},{"x":40,"y":49.6,"w":9,"h":9,"style":"toyblock"},{"x":26.7,"y":96.9,"w":9,"h":9,"style":"toyblock"},{"x":71.2,"y":110.9,"w":9,"h":9,"style":"toyblock"}],"movers":[{"type":"mill","x":43.3,"y":72.8,"len":14,"w":-1.7,"ph":5.7}],"wind":3,"start":[30.6,141],"hole":{"x":24.2,"y":33.1,"type":"toybox"},"name":"El molino de juguete","tip":[["🌬️","Esperá a que las aspas del <b>molino</b> dejen pasar."],["⛰️","<b>Lomas</b> que desvían y <b>pozos</b> que atrapan."],["💨","Mucho ventilador."]],"par":3},
-    {"theme":"toys","walls":[[[12,15],[88,15],[88,150],[12,150],[12,15]],[[12,99.9],[64,99.9]],[[36,69.3],[88,69.3]]],"bumpers":[{"x":76.9,"y":49.2,"r":3.8,"style":"ballpit"},{"x":28.5,"y":54.4,"r":3.7,"style":"ballpit"},{"x":61.8,"y":112.8,"r":4.1,"style":"ballpit"}],"blocks":[{"x":62.099999999999994,"y":83.7,"w":9,"h":9,"style":"toyblock"},{"x":39.1,"y":78.8,"w":9,"h":9,"style":"toyblock"}],"wind":3,"start":[27.3,141],"hole":{"x":30.9,"y":28.9,"type":"toybox"},"name":"La serpiente de juguete","tip":[["↩️","Zigzag: usá los rebotes o pasá por arriba con el hierro… si no hay pared alta."],["💨","Mucho ventilador."]],"par":5},
-    {"theme":"toys","walls":[[[15,15],[85,15],[85,150],[15,150],[15,15]],[[15,78.1],[85,78.1]]],"zones":[{"type":"slope","rect":[15,102.3,70,14.8],"dir":[-1,0],"f":54.2}],"bumpers":[{"x":49.7,"y":67.7,"r":3.8,"style":"ballpit"},{"x":74.9,"y":122.9,"r":3.6,"style":"ballpit"}],"blocks":[{"x":40.1,"y":49.6,"w":9,"h":9,"style":"toyblock"},{"x":25.5,"y":44.1,"w":9,"h":9,"style":"toyblock"}],"tubes":[{"a":[33.3,97.8],"b":[79,67.7],"dir":[-1,0],"speed":39,"color":"#4ade80"}],"wind":2,"start":[36.7,141],"hole":{"x":49,"y":31.8,"type":"toybox"},"name":"El atajo de juguete","tip":[["🛝","Usá el <b>tobogán</b> para pasar al otro lado."],["⛰️","Una <b>cuesta</b> empuja la pelota."],["💨","Bastante ventilador."]],"par":4},
-    {"theme":"toys","walls":[[[12,15],[88,15],[88,150],[12,150],[12,15]]],"zones":[{"type":"slope","rect":[12,68.2,76,14.2],"dir":[1,0],"f":46.3},{"type":"mound","circle":[66.4,100.5,12.9],"f":63.6}],"bumpers":[{"x":33.7,"y":123.2,"r":3.9,"style":"ballpit"}],"blocks":[{"x":67.6,"y":53,"w":9,"h":9,"style":"toyblock"},{"x":23.3,"y":102.4,"w":9,"h":9,"style":"toyblock"}],"plats":[{"rect":[17.75,17.650000000000002,26.5,21.9],"h":5.6,"style":"table"}],"wind":3,"start":[64.7,141],"hole":{"x":31,"y":28.6,"type":"toybox","plat":0},"name":"Hoyo en altura de juguete","tip":[["🪜","Hoyo elevado: rodando no se sube, levantá la pelota con el <b>hierro</b>."],["⛰️","<b>Lomas</b> que desvían y <b>pozos</b> que atrapan."],["⛰️","Una <b>cuesta</b> empuja la pelota."]],"par":3},
-    {"theme":"toys","walls":[[[12,15],[88,15],[88,150],[12,150],[12,15]],[[12,80.9],[27.200000000000003,80.9]],[[50,80.9],[88,80.9]]],"zones":[{"type":"slope","rect":[12,97.5,76,16.4],"dir":[0,1],"f":63.8}],"bumpers":[{"x":70.3,"y":60.1,"r":3.6,"style":"ballpit"}],"blocks":[{"x":28,"y":48.3,"w":9,"h":9,"style":"toyblock"},{"x":42.1,"y":97.6,"w":9,"h":9,"style":"toyblock"},{"x":73.3,"y":98.6,"w":9,"h":9,"style":"toyblock"},{"x":18,"y":63.599999999999994,"w":9,"h":9,"style":"toyblock"}],"wind":2,"start":[44.6,141],"hole":{"x":66.2,"y":34,"type":"toybox"},"name":"El paso angosto de juguete","tip":[["⛰️","Una <b>cuesta</b> empuja la pelota."],["💨","Bastante ventilador."]],"par":4},
-    {"theme":"grass","walls":[[[10,15],[90,15],[90,150],[10,150],[10,15]]],"zones":[{"type":"slope","rect":[10,102.3,80,15.7],"dir":[-1,0],"f":46}],"bumpers":[{"x":30.3,"y":72.3,"r":4.4,"style":"mushroom"},{"x":48.2,"y":72.9,"r":3.6,"style":"mushroom"},{"x":79.7,"y":63,"r":4.3,"style":"mushroom"},{"x":47.1,"y":49.2,"r":4.1,"style":"mushroom"},{"x":66.6,"y":76.1,"r":4.5,"style":"mushroom"}],"wind":2,"start":[27.8,141],"hole":{"x":31.5,"y":33.9,"type":"cup"},"name":"Campo minado del parque","tip":[["⛰️","Una <b>cuesta</b> empuja la pelota."],["💨","Bastante viento."]],"par":5},
-    {"theme":"grass","walls":[[[15,15],[85,15],[85,150],[15,150],[15,15]],[[15,79.1],[52.5,79.1]],[[72.5,79.1],[85,79.1]]],"zones":[{"type":"mound","circle":[49.3,103.3,12.1],"f":63.3},{"type":"bowl","circle":[49.1,52.6,10.2],"f":66.6}],"bumpers":[{"x":72.8,"y":93.5,"r":3.8,"style":"mushroom"},{"x":41,"y":123.3,"r":4.3,"style":"mushroom"},{"x":72.1,"y":121.9,"r":4.6,"style":"mushroom"},{"x":63.2,"y":66.2,"r":4.9,"style":"mushroom"}],"wind":3,"start":[59.6,141],"hole":{"x":70.7,"y":33.4,"type":"cup"},"name":"El paso angosto del parque","tip":[["⛰️","<b>Lomas</b> que desvían y <b>pozos</b> que atrapan."],["💨","Mucho viento."]],"par":3},
-    {"theme":"grass","walls":[[[15,15],[85,15],[85,150],[15,150],[15,15]],[[15,99.6],[61,99.6]],[[39,64.1],[85,64.1]]],"zones":[{"type":"sand","rect":[19.2,79.5,18,12]},{"type":"slope","rect":[15,110.2,70,14.9],"dir":[1,0],"f":44.4}],"bumpers":[{"x":67.3,"y":117.3,"r":5,"style":"mushroom"},{"x":45.3,"y":110.4,"r":4.1,"style":"mushroom"},{"x":58.9,"y":49.6,"r":4.6,"style":"mushroom"},{"x":43.3,"y":73.8,"r":4.2,"style":"mushroom"}],"wind":3,"start":[31.1,141],"hole":{"x":42,"y":29.2,"type":"cup"},"name":"La serpiente del parque","tip":[["↩️","Zigzag: usá los rebotes o pasá por arriba con el hierro… si no hay pared alta."],["⛰️","Una <b>cuesta</b> empuja la pelota."],["💨","Mucho viento."]],"par":4},
-    {"theme":"grass","walls":[[[10,15],[90,15],[90,150],[10,150],[10,15]],[[10,91],[90,91]]],"bumpers":[{"x":22.9,"y":64.3,"r":4.6,"style":"mushroom"},{"x":61.3,"y":111.2,"r":4.3,"style":"mushroom"},{"x":46.1,"y":64.1,"r":4,"style":"mushroom"},{"x":68.5,"y":54.1,"r":4.5,"style":"mushroom"},{"x":28.3,"y":122.5,"r":4.7,"style":"mushroom"},{"x":31.9,"y":100.5,"r":3.5,"style":"mushroom"}],"tubes":[{"a":[48.1,104.8],"b":[84,71.5],"dir":[-1,0],"speed":29.1,"color":"#ffd23f"}],"wind":3,"start":[55,141],"hole":{"x":55.7,"y":35.3,"type":"cup"},"name":"El atajo del parque","tip":[["🛝","Usá el <b>tobogán</b> para pasar al otro lado."],["💨","Mucho viento."]],"par":5},
-    {"theme":"grass","walls":[[[15,15],[85,15],[85,150],[15,150],[15,15]]],"zones":[{"type":"bowl","circle":[40.8,76.8,12.2],"f":71.1},{"type":"sand","rect":[51.1,119.9,18,12]},{"type":"slope","rect":[15,92.8,70,16.3],"dir":[0,1],"f":74.7},{"type":"sand","rect":[62.5,59.400000000000006,18,12]}],"bumpers":[{"x":30.3,"y":121.3,"r":3.5,"style":"mushroom"},{"x":46.5,"y":115.7,"r":3.8,"style":"mushroom"}],"plats":[{"rect":[39.15,20.05,29.5,23.9],"h":6.8,"style":"grass"}],"wind":3,"start":[37,141],"hole":{"x":53.9,"y":32,"type":"cup","plat":0},"name":"Arriba de todo del parque","tip":[["🪜","Hoyo elevado: rodando no se sube, levantá la pelota con el <b>hierro</b>."],["⛰️","<b>Lomas</b> que desvían y <b>pozos</b> que atrapan."],["⛰️","Una <b>cuesta</b> empuja la pelota."]],"par":3},
-    {"theme":"grass","walls":[[[12,15],[88,15],[88,150],[12,150],[12,15]],[[12,71.1],[45.15,71.1]],[[64.85,71.1],[88,71.1]]],"zones":[{"type":"sand","rect":[50.7,47.5,18,12]},{"type":"slope","rect":[12,92.5,76,15.2],"dir":[1,0],"f":49.8},{"type":"sand","rect":[36.7,113.5,18,12]}],"bumpers":[{"x":24.7,"y":61.8,"r":4,"style":"mushroom"},{"x":80.1,"y":113.4,"r":3.5,"style":"mushroom"},{"x":43.5,"y":59.5,"r":4.8,"style":"mushroom"}],"wind":3,"start":[35.8,141],"hole":{"x":51.4,"y":31.5,"type":"cup"},"name":"El hueco del parque","tip":[["⛰️","Una <b>cuesta</b> empuja la pelota."],["💨","Mucho viento."]],"par":3},
-    {"theme":"garden","walls":[[[15,15],[85,15],[85,150],[15,150],[15,15]],[[15,88.7],[43.7,88.7]],[[63.3,88.7],[85,88.7]]],"bumpers":[{"x":71,"y":73.7,"r":4.9,"style":"mushroom"},{"x":69.6,"y":48.2,"r":4.4,"style":"mushroom"},{"x":75.5,"y":105.4,"r":4,"style":"rock"},{"x":36.5,"y":60.7,"r":4.7,"style":"rock"},{"x":42.1,"y":98.7,"r":4.9,"style":"rock"},{"x":60.8,"y":108.5,"r":4.9,"style":"mushroom"}],"gates":[{"id":"g1","seg":[[43.7,88.7],[63.3,88.7]]}],"buttons":[{"x":48.9,"y":115.4,"r":3.6,"gate":"g1"}],"wind":3,"start":[30.3,141],"hole":{"x":57.3,"y":33,"type":"cup"},"name":"La compuerta del jardín","tip":[["🔴","Pegale al <b>botón</b> para abrir la compuerta."],["💨","Mucho viento."]],"par":3}
+    {"theme":"cesped","rail":"blue","walls":[[[62.8,154],[62.8,47.12],[63.89,44.6],[64.49,41.92],[64.57,39.17],[64.14,36.46],[63.21,33.88],[61.81,31.51],[59.99,29.45],[57.82,27.77],[55.37,26.52],[52.73,25.76],[50,25.5],[47.27,25.76],[44.63,26.52],[42.18,27.77],[40.01,29.45],[38.19,31.51],[36.79,33.88],[35.86,36.46],[35.43,39.17],[35.51,41.92],[36.11,44.6],[37.2,47.12],[37.2,154],[62.8,154]]],"bumpers":[{"x":58,"y":77.3,"r":2.8,"style":"peg","color":"#ef4444"},{"x":47,"y":80.1,"r":2.8,"style":"peg","color":"#ef4444"}],"tunnels":[{"x":37.2,"y":102.3,"w":25.6,"h":11,"gap":9.6,"off":-2.4,"axis":"v"}],"start":[50,146],"hole":{"x":50,"y":40.1,"type":"cup"},"wind":0,"name":"La recta del túnel","tip":[["🔴","Esquivá los <b>postes</b>."],["📦","Pasá por el <b>túnel de la caja</b>."]],"par":4},
+    {"theme":"cesped","rail":"yellow","walls":[[[41.8,154],[41.8,60.6],[66.12,60.6],[68.68,61.43],[71.34,61.79],[74.03,61.66],[76.65,61.06],[79.12,60],[81.36,58.52],[83.3,56.66],[84.88,54.49],[86.04,52.07],[86.76,49.48],[87,46.8],[86.76,44.12],[86.04,41.53],[84.88,39.11],[83.3,36.94],[81.36,35.08],[79.12,33.6],[76.65,32.54],[74.03,31.94],[71.34,31.81],[68.68,32.17],[66.12,33],[14.2,33],[14.2,154],[41.8,154]]],"bumpers":[{"x":20.4,"y":112.9,"r":2.8,"style":"peg","color":"#1e63d6"},{"x":32,"y":109,"r":2.8,"style":"peg","color":"#ef4444"},{"x":28.4,"y":98.5,"r":2.8,"style":"peg","color":"#22c55e"},{"x":20.1,"y":102,"r":2.8,"style":"peg","color":"#1e63d6"}],"tunnels":[{"x":14.2,"y":70,"w":27.6,"h":11,"gap":8.8,"off":-6.4,"axis":"v"}],"start":[28,146],"hole":{"x":72,"y":46.8,"type":"cup"},"wind":0,"name":"La ele del túnel","tip":[["🔴","Esquivá los <b>postes</b>."],["📦","Pasá por el <b>túnel de la caja</b>."]],"par":5},
+    {"theme":"cesped","rail":"yellow","walls":[[[37.45,154],[37.45,118.95],[85.45,118.95],[85.45,51.69],[87.19,49.13],[88.38,46.28],[88.95,43.23],[88.88,40.14],[88.19,37.13],[86.88,34.32],[85.03,31.84],[82.71,29.79],[80.02,28.26],[77.08,27.32],[74,27],[70.92,27.32],[67.98,28.26],[65.29,29.79],[62.97,31.84],[61.12,34.32],[59.81,37.13],[59.12,40.14],[59.05,43.23],[59.62,46.28],[60.81,49.13],[62.55,51.69],[62.55,96.05],[14.55,96.05],[14.55,154],[37.45,154]]],"bumpers":[{"x":72.8,"y":78,"r":2.8,"style":"peg","color":"#facc15"},{"x":78.4,"y":69.1,"r":2.8,"style":"peg","color":"#facc15"},{"x":76.1,"y":84.8,"r":2.8,"style":"peg","color":"#ef4444"}],"start":[26,146],"hole":{"x":74,"y":42,"type":"cup"},"wind":0,"name":"Zigzag de los postes","tip":[["🔴","Esquivá los <b>postes</b>."]],"par":4},
+    {"theme":"cesped","rail":"red","walls":[[[86.45,154],[86.45,27.55],[13.55,27.55],[13.55,103.63],[12.16,106.23],[11.29,109.04],[11,111.97],[11.28,114.9],[12.13,117.72],[13.52,120.32],[15.38,122.6],[17.66,124.47],[20.25,125.86],[23.07,126.71],[26,127],[28.93,126.71],[31.75,125.86],[34.34,124.47],[36.62,122.6],[38.48,120.32],[39.87,117.72],[40.72,114.9],[41,111.97],[40.71,109.04],[39.84,106.23],[38.45,103.63],[38.45,52.45],[61.55,52.45],[61.55,154],[86.45,154]]],"zones":[{"type":"water","rect":[13.6,70.7,24.9,13]},{"type":"waves","rect":[61.6,94.4,24.9,26.4],"dir":[0,-1],"n":3,"f":80}],"ramps":[{"x":26,"y":58.7,"dir":[0,1],"len":10,"w":12.45,"h":5}],"start":[74,146],"hole":{"x":26,"y":112,"type":"cup"},"wind":1,"name":"La vuelta en U del salto","tip":[["🛫","Subí la <b>rampa</b> con fuerza para saltar el agua."],["〰️","Las <b>jorobas</b> frenan la pelota: pegale firme."],["💨","Un poco de viento."]],"par":4},
+    {"theme":"cesped","rail":"wood","walls":[[[86.3,154],[86.3,111.7],[34.3,111.7],[34.3,90.3],[86.3,90.3],[86.3,49.93],[87.68,47.7],[88.59,45.23],[88.98,42.63],[88.85,40.01],[88.18,37.47],[87.02,35.11],[85.41,33.03],[83.42,31.33],[81.12,30.05],[78.61,29.27],[76,29],[73.39,29.27],[70.88,30.05],[68.58,31.33],[66.59,33.03],[64.98,35.11],[63.82,37.47],[63.15,40.01],[63.02,42.63],[63.41,45.23],[64.32,47.7],[65.7,49.93],[65.7,69.7],[13.7,69.7],[13.7,132.3],[65.7,132.3],[65.7,154],[86.3,154]]],"zones":[{"type":"slope","rect":[45.1,69.7,14.4,20.6],"dir":[-0.0,1],"f":45.7}],"start":[76,146],"hole":{"x":76,"y":42,"type":"cup"},"wind":0,"name":"La serpentina de la cuesta","tip":[["⛰️","Una <b>cuesta</b> la tira para un costado."]],"par":3},
+    {"theme":"ripio","rail":"wood","walls":[[[85.65,154],[85.65,72],[58.35,72],[58.35,154],[85.65,154]],[[41.65,124],[41.65,45.46],[42.4,42.96],[42.7,40.38],[42.53,37.78],[41.91,35.25],[40.85,32.87],[39.39,30.71],[37.58,28.85],[35.46,27.33],[33.11,26.22],[30.59,25.53],[28,25.3],[25.41,25.53],[22.89,26.22],[20.54,27.33],[18.42,28.85],[16.61,30.71],[15.15,32.87],[14.09,35.25],[13.47,37.78],[13.3,40.38],[13.6,42.96],[14.35,45.46],[14.35,124],[41.65,124]]],"zones":[{"type":"waves","rect":[58.4,89.8,27.3,21.3],"dir":[0,-1],"n":2,"f":97.5},{"type":"water","rect":[14.4,66.5,27.3,15.1]}],"ramps":[{"x":28,"y":93.6,"dir":[0,-1],"len":10,"w":13.65,"h":5}],"tubes":[{"a":[72,77],"b":[28,117],"dir":[0,-1],"speed":42.4,"color":"#facc15"}],"start":[72,146],"hole":{"x":28,"y":40,"type":"cup"},"wind":1,"name":"Dos pistas del salto","tip":[["🛝","Son dos pistas unidas por un <b>tobogán</b>."],["〰️","Las <b>jorobas</b> frenan la pelota: pegale firme."],["🛫","Subí la <b>rampa</b> con fuerza para saltar el agua."]],"par":4},
+    {"theme":"ripio","rail":"yellow","walls":[[[84.45,154],[84.45,38.05],[38.68,38.05],[35.89,36.12],[32.76,34.81],[29.43,34.16],[26.03,34.22],[22.73,34.97],[19.64,36.39],[16.92,38.41],[14.67,40.95],[12.99,43.9],[11.95,47.13],[11.6,50.5],[11.95,53.87],[12.99,57.1],[14.67,60.05],[16.92,62.59],[19.64,64.61],[22.73,66.03],[26.03,66.78],[29.43,66.84],[32.76,66.19],[35.89,64.88],[38.68,62.95],[59.55,62.95],[59.55,154],[84.45,154]]],"zones":[{"type":"water","rect":[59.6,81.6,24.9,15.9]}],"ramps":[{"x":72,"y":109.5,"dir":[0,-1],"len":10,"w":12.45,"h":5}],"start":[72,146],"hole":{"x":28,"y":50.5,"type":"cup"},"wind":1,"name":"La ele del salto","tip":[["🛫","Subí la <b>rampa</b> con fuerza para saltar el agua."],["💨","Un poco de viento."]],"par":2},
+    {"theme":"ripio","rail":"wood","walls":[[[86.1,154],[86.1,93.9],[38.1,93.9],[38.1,50.35],[39.5,47.81],[40.38,45.04],[40.7,42.16],[40.44,39.27],[39.63,36.48],[38.28,33.92],[36.45,31.66],[34.22,29.81],[31.66,28.43],[28.89,27.59],[26,27.3],[23.11,27.59],[20.34,28.43],[17.78,29.81],[15.55,31.66],[13.72,33.92],[12.37,36.48],[11.56,39.27],[11.3,42.16],[11.62,45.04],[12.5,47.81],[13.9,50.35],[13.9,118.1],[61.9,118.1],[61.9,154],[86.1,154]]],"zones":[{"type":"waves","rect":[13.9,62.8,24.2,23.1],"dir":[0,-1],"n":2,"f":98.2}],"start":[74,146],"hole":{"x":26,"y":42,"type":"cup"},"wind":0,"name":"Zigzag de las jorobas","tip":[["〰️","Las <b>jorobas</b> frenan la pelota: pegale firme."]],"par":4},
+    {"theme":"ripio","rail":"red","walls":[[[63.65,154],[63.65,54.19],[65.16,51.35],[66.09,48.28],[66.4,45.08],[66.08,41.88],[65.15,38.81],[63.63,35.98],[61.59,33.5],[59.11,31.46],[56.27,29.95],[53.2,29.01],[50,28.7],[46.8,29.01],[43.73,29.95],[40.89,31.46],[38.41,33.5],[36.37,35.98],[34.85,38.81],[33.92,41.88],[33.6,45.08],[33.91,48.28],[34.84,51.35],[36.35,54.19],[36.35,154],[63.65,154]]],"zones":[{"type":"waves","rect":[36.4,80.6,27.3,21.8],"dir":[0,-1],"n":1,"f":104.3},{"type":"waves","rect":[36.4,110.1,27.3,21.5],"dir":[0,-1],"n":1,"f":86.8}],"plats":[{"rect":[39.75,34.85,20.5,20.5],"h":5,"style":"green"}],"start":[50,146],"hole":{"x":50,"y":45.1,"type":"cup","plat":0},"wind":1,"name":"La recta del escalón","tip":[["〰️","Las <b>jorobas</b> frenan la pelota: pegale firme."],["🪜","El hoyo está arriba de un <b>escalón</b>: levantá la pelota con el hierro."],["💨","Un poco de viento."]],"par":3},
+    {"theme":"ripio","rail":"blue","walls":[[[83.1,154],[83.1,40.2],[38.53,40.2],[35.96,38.23],[33.04,36.85],[29.89,36.12],[26.65,36.06],[23.48,36.68],[20.51,37.96],[17.87,39.83],[15.69,42.22],[14.05,45.01],[13.04,48.08],[12.7,51.3],[13.04,54.52],[14.05,57.59],[15.69,60.38],[17.87,62.77],[20.51,64.64],[23.48,65.92],[26.65,66.54],[29.89,66.48],[33.04,65.75],[35.96,64.37],[38.53,62.4],[60.9,62.4],[60.9,154],[83.1,154]]],"zones":[{"type":"mound","circle":[28,51.3,12.3],"f":102.3,"style":"volcano"}],"bumpers":[{"x":72.2,"y":90.4,"r":2.8,"style":"peg","color":"#ef4444"},{"x":70.3,"y":98.1,"r":2.8,"style":"peg","color":"#22c55e"},{"x":65.4,"y":82.3,"r":2.8,"style":"peg","color":"#ef4444"}],"start":[72,146],"hole":{"x":28,"y":51.3,"type":"cup"},"wind":0,"name":"La ele del volcán","tip":[["🔴","Esquivá los <b>postes</b>."],["🌋","El hoyo está en la punta del <b>volcán</b>: ni muy fuerte ni muy suave."]],"par":3},
+    {"theme":"cancha","rail":"blue","walls":[[[85.5,154],[85.5,85.6],[37.5,85.6],[37.5,51.63],[39.23,49.07],[40.4,46.21],[40.95,43.18],[40.88,40.09],[40.17,37.09],[38.87,34.29],[37.02,31.82],[34.7,29.78],[32.01,28.26],[29.07,27.32],[26,27],[22.93,27.32],[19.99,28.26],[17.3,29.78],[14.98,31.82],[13.13,34.29],[11.83,37.09],[11.12,40.09],[11.05,43.18],[11.6,46.21],[12.77,49.07],[14.5,51.63],[14.5,108.6],[62.5,108.6],[62.5,154],[85.5,154]]],"tunnels":[{"x":14.5,"y":65,"w":23,"h":11,"gap":8.6,"off":2.2,"axis":"v"}],"start":[74,146],"hole":{"x":26,"y":42,"type":"cup"},"wind":1,"name":"Zigzag del túnel","tip":[["📦","Pasá por el <b>túnel de la caja</b>."],["💨","Un poco de viento."]],"par":4},
+    {"theme":"cancha","rail":"red","walls":[[[87.1,154],[87.1,26.9],[12.9,26.9],[12.9,105.11],[11.85,107.67],[11.29,110.37],[11.24,113.13],[11.71,115.85],[12.67,118.44],[14.1,120.8],[15.94,122.86],[18.13,124.54],[20.6,125.78],[23.25,126.54],[26,126.8],[28.75,126.54],[31.4,125.78],[33.87,124.54],[36.06,122.86],[37.9,120.8],[39.33,118.44],[40.29,115.85],[40.76,113.13],[40.71,110.37],[40.15,107.67],[39.1,105.11],[39.1,53.1],[60.9,53.1],[60.9,154],[87.1,154]]],"zones":[{"type":"waves","rect":[12.9,63.6,26.2,22.9],"dir":[0,1],"n":1,"f":89.3}],"start":[74,146],"hole":{"x":26,"y":112,"type":"cup"},"wind":0,"name":"La vuelta en U de las jorobas","tip":[["〰️","Las <b>jorobas</b> frenan la pelota: pegale firme."]],"par":3},
+    {"theme":"cancha","rail":"blue","walls":[[[86.25,154],[86.25,111.75],[34.25,111.75],[34.25,90.25],[86.25,90.25],[86.25,50],[87.65,47.77],[88.57,45.3],[88.98,42.69],[88.85,40.06],[88.2,37.51],[87.04,35.14],[85.43,33.06],[83.44,31.34],[81.13,30.06],[78.62,29.27],[76,29],[73.38,29.27],[70.87,30.06],[68.56,31.34],[66.57,33.06],[64.96,35.14],[63.8,37.51],[63.15,40.06],[63.02,42.69],[63.43,45.3],[64.35,47.77],[65.75,50],[65.75,69.75],[13.75,69.75],[13.75,132.25],[65.75,132.25],[65.75,154],[86.25,154]]],"tunnels":[{"x":45.6,"y":111.8,"w":11,"h":20.5,"gap":8.1,"off":0.7,"axis":"h"},{"x":44.6,"y":69.8,"w":11,"h":20.5,"gap":9.5,"off":0.3,"axis":"h"}],"start":[76,146],"hole":{"x":76,"y":42,"type":"cup"},"wind":1,"name":"La serpentina del túnel","tip":[["📦","Pasá por el <b>túnel de la caja</b>."],["💨","Un poco de viento."]],"par":5},
+    {"theme":"cancha","rail":"red","walls":[[[85.05,154],[85.05,72],[58.95,72],[58.95,154],[85.05,154]],[[41.05,124],[41.05,47.4],[42.21,44.8],[42.86,42.04],[42.98,39.2],[42.56,36.39],[41.62,33.71],[40.19,31.25],[38.32,29.11],[36.08,27.36],[33.55,26.07],[30.83,25.27],[28,25],[25.17,25.27],[22.45,26.07],[19.92,27.36],[17.68,29.11],[15.81,31.25],[14.38,33.71],[13.44,36.39],[13.02,39.2],[13.14,42.04],[13.79,44.8],[14.95,47.4],[14.95,124],[41.05,124]]],"zones":[{"type":"waves","rect":[59,103.9,26.1,20.6],"dir":[0,-1],"n":3,"f":93.3},{"type":"waves","rect":[15,64.9,26.1,20.2],"dir":[0,-1],"n":3,"f":86.7}],"tubes":[{"a":[72,77],"b":[28,117],"dir":[0,-1],"speed":44.1,"color":"#facc15"}],"start":[72,146],"hole":{"x":28,"y":40,"type":"cup"},"wind":0,"name":"Dos pistas de las jorobas","tip":[["🛝","Son dos pistas unidas por un <b>tobogán</b>."],["〰️","Las <b>jorobas</b> frenan la pelota: pegale firme."]],"par":3},
+    {"theme":"cancha","rail":"yellow","walls":[[[40.7,154],[40.7,57.9],[64.21,57.9],[66.79,59.16],[69.56,59.9],[72.42,60.09],[75.27,59.74],[77.99,58.84],[80.49,57.44],[82.68,55.59],[84.48,53.35],[85.81,50.8],[86.62,48.06],[86.9,45.2],[86.62,42.34],[85.81,39.6],[84.48,37.05],[82.68,34.81],[80.49,32.96],[77.99,31.56],[75.27,30.66],[72.42,30.31],[69.56,30.5],[66.79,31.24],[64.21,32.5],[15.3,32.5],[15.3,154],[40.7,154]]],"zones":[{"type":"waves","rect":[15.3,107.2,25.4,21.7],"dir":[0,-1],"n":2,"f":89.2},{"type":"mound","circle":[72,45.2,11.9],"f":105,"style":"volcano"}],"loops":[{"x":28,"y":98.1,"dir":[0,-1],"len":12,"w":4.8,"vmin":75,"lane":12.7},{"x":28,"y":79.9,"dir":[0,-1],"len":12,"w":4.8,"vmin":61,"lane":12.7}],"start":[28,146],"hole":{"x":72,"y":45.2,"type":"cup"},"wind":1,"name":"La ele del volcán II","tip":[["➰","Al <b>rizo</b> hay que entrarle con fuerza: si no, la pelota vuelve."],["〰️","Las <b>jorobas</b> frenan la pelota: pegale firme."],["🌋","El hoyo está en la punta del <b>volcán</b>: ni muy fuerte ni muy suave."]],"par":3},
+    {"theme":"patio","rail":"red","walls":[[[85.2,154],[85.2,91],[37.2,91],[37.2,51.21],[38.84,48.73],[39.95,45.97],[40.46,43.04],[40.37,40.07],[39.68,37.18],[38.41,34.5],[36.62,32.12],[34.38,30.17],[31.79,28.71],[28.96,27.8],[26,27.5],[23.04,27.8],[20.21,28.71],[17.62,30.17],[15.38,32.12],[13.59,34.5],[12.32,37.18],[11.63,40.07],[11.54,43.04],[12.05,45.97],[13.16,48.73],[14.8,51.21],[14.8,113.4],[62.8,113.4],[62.8,154],[85.2,154]]],"tunnels":[{"x":14.8,"y":62.3,"w":22.4,"h":11,"gap":9.6,"off":0.8,"axis":"v"},{"x":62.8,"y":122.6,"w":22.4,"h":11,"gap":9.4,"off":0.2,"axis":"v"}],"start":[74,146],"hole":{"x":26,"y":42,"type":"cup"},"wind":2,"name":"Zigzag del túnel II","tip":[["📦","Pasá por el <b>túnel de la caja</b>."],["💨","Bastante viento."]],"par":5},
+    {"theme":"patio","rail":"red","walls":[[[61.85,154],[61.85,56.64],[63.97,53.89],[65.47,50.75],[66.27,47.37],[66.34,43.9],[65.68,40.49],[64.31,37.3],[62.31,34.46],[59.75,32.11],[56.75,30.35],[53.45,29.27],[50,28.9],[46.55,29.27],[43.25,30.35],[40.25,32.11],[37.69,34.46],[35.69,37.3],[34.32,40.49],[33.66,43.9],[33.73,47.37],[34.53,50.75],[36.03,53.89],[38.15,56.64],[38.15,154],[61.85,154]]],"zones":[{"type":"waves","rect":[38.2,67.3,23.7,27.6],"dir":[0,-1],"n":2,"f":93.9},{"type":"water","rect":[38.2,100.5,23.7,24]},{"type":"bridge","rect":[50.550000000000004,99.5,8.1,26],"style":"suspension"}],"plats":[{"rect":[39.75,35.05,20.5,20.5],"h":5,"style":"green"}],"start":[50,146],"hole":{"x":50,"y":45.3,"type":"cup","plat":0},"wind":1,"name":"La recta del escalón II","tip":[["〰️","Las <b>jorobas</b> frenan la pelota: pegale firme."],["🌉","Cruzá por el <b>puente</b> angosto… o volá el agua con el hierro."],["🪜","El hoyo está arriba de un <b>escalón</b>: levantá la pelota con el hierro."]],"par":3},
+    {"theme":"patio","rail":"red","walls":[[[41.55,154],[41.55,64.15],[62.07,64.15],[64.96,65.86],[68.14,66.95],[71.47,67.39],[74.82,67.16],[78.06,66.27],[81.06,64.75],[83.69,62.67],[85.86,60.1],[87.47,57.15],[88.46,53.94],[88.8,50.6],[88.46,47.26],[87.47,44.05],[85.86,41.1],[83.69,38.53],[81.06,36.45],[78.06,34.93],[74.82,34.04],[71.47,33.81],[68.14,34.25],[64.96,35.34],[62.07,37.05],[14.45,37.05],[14.45,154],[41.55,154]]],"zones":[{"type":"slope","rect":[14.5,104.5,27.1,19.4],"dir":[-1,-0.0],"f":49.7}],"bumpers":[{"x":20.9,"y":82.4,"r":2.8,"style":"peg","color":"#facc15"},{"x":27.2,"y":87.4,"r":2.8,"style":"peg","color":"#1e63d6"}],"start":[28,146],"hole":{"x":72,"y":50.6,"type":"cup"},"wind":2,"name":"La ele de la cuesta","tip":[["⛰️","Una <b>cuesta</b> la tira para un costado."],["🔴","Esquivá los <b>postes</b>."],["💨","Bastante viento."]],"par":4},
+    {"theme":"patio","rail":"yellow","walls":[[[38.7,154],[38.7,117.3],[86.7,117.3],[86.7,49.98],[88,47.39],[88.77,44.59],[89,41.7],[88.66,38.81],[87.77,36.05],[86.37,33.51],[84.5,31.29],[82.24,29.46],[79.67,28.11],[76.89,27.28],[74,27],[71.11,27.28],[68.33,28.11],[65.76,29.46],[63.5,31.29],[61.63,33.51],[60.23,36.05],[59.34,38.81],[59,41.7],[59.23,44.59],[60,47.39],[61.3,49.98],[61.3,91.9],[13.3,91.9],[13.3,154],[38.7,154]]],"zones":[{"type":"water","rect":[61.3,61.5,25.4,24]},{"type":"bridge","rect":[71.9,60.5,8,26],"style":"suspension"},{"type":"mound","circle":[74,42,12],"f":118.9,"style":"volcano"}],"start":[26,146],"hole":{"x":74,"y":42,"type":"cup"},"wind":1,"name":"Zigzag del volcán","tip":[["🌉","Cruzá por el <b>puente</b> angosto… o volá el agua con el hierro."],["🌋","El hoyo está en la punta del <b>volcán</b>: ni muy fuerte ni muy suave."],["💨","Un poco de viento."]],"par":4},
+    {"theme":"patio","rail":"red","walls":[[[37.35,154],[37.35,51.35],[62.65,51.35],[62.65,103.8],[61.25,106.22],[60.36,108.86],[60,111.63],[60.21,114.41],[60.96,117.1],[62.23,119.58],[63.97,121.77],[66.11,123.56],[68.56,124.9],[71.22,125.72],[74,126],[76.78,125.72],[79.44,124.9],[81.89,123.56],[84.03,121.77],[85.77,119.58],[87.04,117.1],[87.79,114.41],[88,111.63],[87.64,108.86],[86.75,106.22],[85.35,103.8],[85.35,28.65],[14.65,28.65],[14.65,154],[37.35,154]]],"zones":[{"type":"slope","rect":[14.7,81,22.7,14.9],"dir":[1,0],"f":45.9},{"type":"water","rect":[14.7,108.9,22.7,12.8]}],"loops":[{"x":74,"y":80.9,"dir":[0,1],"len":12,"w":4.8,"vmin":68,"lane":11.35}],"ramps":[{"x":26,"y":133.7,"dir":[0,-1],"len":10,"w":11.35,"h":5}],"start":[26,146],"hole":{"x":74,"y":112,"type":"cup"},"wind":1,"name":"La vuelta en U del rizo","tip":[["➰","Al <b>rizo</b> hay que entrarle con fuerza: si no, la pelota vuelve."],["⛰️","Una <b>cuesta</b> la tira para un costado."],["🛫","Subí la <b>rampa</b> con fuerza para saltar el agua."]],"par":4},
+    {"theme":"bath","rail":"white","walls":[[[34.4,154],[34.4,132.4],[86.4,132.4],[86.4,69.6],[34.4,69.6],[34.4,49.8],[35.75,47.56],[36.62,45.1],[36.99,42.51],[36.83,39.91],[36.15,37.38],[34.98,35.05],[33.37,32.99],[31.38,31.3],[29.09,30.04],[26.6,29.26],[24,29],[21.4,29.26],[18.91,30.04],[16.62,31.3],[14.63,32.99],[13.02,35.05],[11.85,37.38],[11.17,39.91],[11.01,42.51],[11.38,45.1],[12.25,47.56],[13.6,49.8],[13.6,90.4],[65.6,90.4],[65.6,111.6],[13.6,111.6],[13.6,154],[34.4,154]]],"bumpers":[{"x":47.2,"y":84.9,"r":2.8,"style":"roll","color":"#1e63d6"},{"x":48.4,"y":75.2,"r":2.8,"style":"roll","color":"#22c55e"}],"tunnels":[{"x":44.4,"y":111.6,"w":11,"h":20.8,"gap":9.2,"off":1.7,"axis":"h"}],"start":[24,146],"hole":{"x":24,"y":42,"type":"toilet"},"wind":1,"name":"La serpentina del túnel II","tip":[["📦","Pasá por el <b>túnel de la caja</b>."],["🔴","Esquivá los <b>postes</b>."],["💨","Un poco de ventilador."]],"par":4},
+    {"theme":"bath","rail":"white","walls":[[[83.85,154],[83.85,72],[60.15,72],[60.15,154],[83.85,154]],[[39.85,124],[39.85,52.05],[42.15,49.24],[43.79,46.01],[44.71,42.51],[44.86,38.88],[44.24,35.31],[42.86,31.96],[40.81,28.97],[38.16,26.49],[35.04,24.64],[31.6,23.49],[28,23.1],[24.4,23.49],[20.96,24.64],[17.84,26.49],[15.19,28.97],[13.14,31.96],[11.76,35.31],[11.14,38.88],[11.29,42.51],[12.21,46.01],[13.85,49.24],[16.15,52.05],[16.15,124],[39.85,124]]],"zones":[{"type":"waves","rect":[60.2,106.6,23.7,26.9],"dir":[0,-1],"n":3,"f":101.1}],"loops":[{"x":28,"y":88.2,"dir":[0,-1],"len":12,"w":4.8,"vmin":73,"lane":11.85},{"x":72,"y":100.7,"dir":[0,-1],"len":12,"w":4.8,"vmin":61,"lane":11.85}],"tubes":[{"a":[72,77],"b":[28,117],"dir":[0,-1],"speed":41.8,"color":"#22c55e"}],"start":[72,146],"hole":{"x":28,"y":40,"type":"toilet"},"wind":2,"name":"Dos pistas del rizo","tip":[["🛝","Son dos pistas unidas por un <b>tobogán</b>."],["➰","Al <b>rizo</b> hay que entrarle con fuerza: si no, la pelota vuelve."],["〰️","Las <b>jorobas</b> frenan la pelota: pegale firme."]],"par":4},
+    {"theme":"bath","rail":"white","walls":[[[39.35,154],[39.35,66.45],[63.63,66.45],[66.06,67.89],[68.73,68.82],[71.53,69.19],[74.34,69],[77.07,68.26],[79.59,66.99],[81.8,65.24],[83.62,63.08],[84.98,60.6],[85.82,57.91],[86.1,55.1],[85.82,52.29],[84.98,49.6],[83.62,47.12],[81.8,44.96],[79.59,43.21],[77.07,41.94],[74.34,41.2],[71.53,41.01],[68.73,41.38],[66.06,42.31],[63.63,43.75],[16.65,43.75],[16.65,154],[39.35,154]]],"bumpers":[{"x":34.3,"y":88.5,"r":2.8,"style":"roll","color":"#ef4444"},{"x":22.9,"y":79.4,"r":2.8,"style":"roll","color":"#facc15"},{"x":34.4,"y":77.4,"r":2.8,"style":"roll","color":"#22c55e"},{"x":23.9,"y":93.5,"r":2.8,"style":"roll","color":"#22c55e"}],"tunnels":[{"x":16.7,"y":117.2,"w":22.7,"h":11,"gap":8.1,"off":1.3,"axis":"v"}],"start":[28,146],"hole":{"x":72,"y":55.1,"type":"toilet"},"wind":1,"name":"La ele del túnel II","tip":[["📦","Pasá por el <b>túnel de la caja</b>."],["🔴","Esquivá los <b>postes</b>."],["💨","Un poco de ventilador."]],"par":4},
+    {"theme":"bath","rail":"white","walls":[[[87.8,154],[87.8,86.2],[39.8,86.2],[39.8,47.88],[40.63,45.32],[40.99,42.66],[40.86,39.97],[40.26,37.35],[39.2,34.88],[37.72,32.64],[35.86,30.7],[33.69,29.12],[31.27,27.96],[28.68,27.24],[26,27],[23.32,27.24],[20.73,27.96],[18.31,29.12],[16.14,30.7],[14.28,32.64],[12.8,34.88],[11.74,37.35],[11.14,39.97],[11.01,42.66],[11.37,45.32],[12.2,47.88],[12.2,113.8],[60.2,113.8],[60.2,154],[87.8,154]],[[60.2,124],[64.05,124]],[[73.95,124],[87.8,124]],[[12.2,74.8],[19.8,74.8]],[[31,74.8],[39.8,74.8]]],"zones":[{"type":"mound","circle":[26,42,12],"f":104.7,"style":"volcano"}],"loops":[{"x":26,"y":75.3,"dir":[0,-1],"len":12,"w":4.8,"vmin":74,"lane":13.8},{"x":74,"y":133,"dir":[0,-1],"len":12,"w":4.8,"vmin":67,"lane":13.8}],"start":[74,146],"hole":{"x":26,"y":42,"type":"toilet"},"wind":2,"name":"Zigzag del volcán II","tip":[["➰","Al <b>rizo</b> hay que entrarle con fuerza: si no, la pelota vuelve."],["🌋","El hoyo está en la punta del <b>volcán</b>: ni muy fuerte ni muy suave."],["💨","Bastante ventilador."]],"par":5},
+    {"theme":"bath","rail":"white","walls":[[[62.7,154],[62.7,52.37],[63.7,49.91],[64.22,47.3],[64.25,44.64],[63.79,42.02],[62.85,39.53],[61.47,37.26],[59.69,35.29],[57.58,33.67],[55.2,32.48],[52.65,31.75],[50,31.5],[47.35,31.75],[44.8,32.48],[42.42,33.67],[40.31,35.29],[38.53,37.26],[37.15,39.53],[36.21,42.02],[35.75,44.64],[35.78,47.3],[36.3,49.91],[37.3,52.37],[37.3,154],[62.7,154]],[[37.3,127.9],[41.45,127.9]],[[52.75,127.9],[62.7,127.9]]],"zones":[{"type":"waves","rect":[37.3,92.3,25.4,27],"dir":[0,-1],"n":3,"f":92}],"bumpers":[{"x":43.8,"y":86,"r":2.8,"style":"roll","color":"#1e63d6"},{"x":46.8,"y":70.9,"r":2.8,"style":"roll","color":"#facc15"},{"x":51.4,"y":84.5,"r":2.8,"style":"roll","color":"#1e63d6"},{"x":55.9,"y":70.3,"r":2.8,"style":"roll","color":"#ef4444"}],"start":[50,146],"hole":{"x":50,"y":45.8,"type":"toilet"},"wind":2,"name":"La recta de las jorobas","tip":[["〰️","Las <b>jorobas</b> frenan la pelota: pegale firme."],["🔴","Esquivá los <b>postes</b>."],["💨","Bastante ventilador."]],"par":4},
+    {"theme":"kitchen","rail":"red","walls":[[[41.2,154],[41.2,62.5],[61.29,62.5],[64.2,64.4],[67.43,65.67],[70.85,66.26],[74.33,66.14],[77.7,65.31],[80.84,63.82],[83.61,61.72],[85.89,59.1],[87.59,56.07],[88.64,52.76],[89,49.3],[88.64,45.84],[87.59,42.53],[85.89,39.5],[83.61,36.88],[80.84,34.78],[77.7,33.29],[74.33,32.46],[70.85,32.34],[67.43,32.93],[64.2,34.2],[61.29,36.1],[14.8,36.1],[14.8,154],[41.2,154]]],"zones":[{"type":"waves","rect":[14.8,79.8,26.4,24],"dir":[0,-1],"n":1,"f":96.3}],"bumpers":[{"x":20.9,"y":110.4,"r":2.8,"style":"cup","color":"#ef4444"},{"x":32.8,"y":122.8,"r":2.8,"style":"cup","color":"#1e63d6"},{"x":35.1,"y":109.8,"r":2.8,"style":"cup","color":"#1e63d6"},{"x":26.8,"y":117.3,"r":2.8,"style":"cup","color":"#1e63d6"}],"start":[28,146],"hole":{"x":72,"y":49.3,"type":"pot"},"wind":1,"name":"La ele de las jorobas","tip":[["🔴","Esquivá los <b>postes</b>."],["〰️","Las <b>jorobas</b> frenan la pelota: pegale firme."],["💨","Un poco de ventilador."]],"par":3},
+    {"theme":"kitchen","rail":"yellow","walls":[[[85.1,154],[85.1,82.7],[37.1,82.7],[37.1,51.94],[38.92,49.42],[40.18,46.57],[40.82,43.53],[40.82,40.42],[40.16,37.37],[38.89,34.53],[37.06,32.02],[34.75,29.94],[32.05,28.39],[29.09,27.42],[26,27.1],[22.91,27.42],[19.95,28.39],[17.25,29.94],[14.94,32.02],[13.11,34.53],[11.84,37.37],[11.18,40.42],[11.18,43.53],[11.82,46.57],[13.08,49.42],[14.9,51.94],[14.9,104.9],[62.9,104.9],[62.9,154],[85.1,154]]],"zones":[{"type":"belt","rect":[62.9,118.1,22.2,12.6],"dir":[-1,-0.0],"f":74},{"type":"belt","rect":[14.9,62.2,22.2,10.4],"dir":[-1,-0.0],"f":73.3}],"plats":[{"rect":[16.6875,32.6875,18.625,18.625],"h":5,"style":"green"}],"start":[74,146],"hole":{"x":26,"y":42,"type":"pot","plat":0},"wind":2,"name":"Zigzag del escalón","tip":[["➡️","Las <b>cintas</b> arrastran la pelota."],["🪜","El hoyo está arriba de un <b>escalón</b>: levantá la pelota con el hierro."],["💨","Bastante ventilador."]],"par":4},
+    {"theme":"kitchen","rail":"wood","walls":[[[86.25,154],[86.25,27.75],[13.75,27.75],[13.75,103.34],[12.28,105.93],[11.35,108.76],[11,111.71],[11.24,114.68],[12.06,117.54],[13.43,120.18],[15.29,122.51],[17.58,124.41],[20.19,125.83],[23.04,126.7],[26,127],[28.96,126.7],[31.81,125.83],[34.42,124.41],[36.71,122.51],[38.57,120.18],[39.94,117.54],[40.76,114.68],[41,111.71],[40.65,108.76],[39.72,105.93],[38.25,103.34],[38.25,52.25],[61.75,52.25],[61.75,154],[86.25,154]]],"zones":[{"type":"waves","rect":[61.8,100.3,24.5,19.9],"dir":[0,-1],"n":3,"f":99.3},{"type":"belt","rect":[61.8,65.9,24.5,12.7],"dir":[1,0],"f":72.4},{"type":"waves","rect":[13.8,59.4,24.5,21.2],"dir":[0,1],"n":1,"f":85.9},{"type":"mound","circle":[26,112,12],"f":115.8,"style":"volcano"}],"start":[74,146],"hole":{"x":26,"y":112,"type":"pot"},"wind":1,"name":"La vuelta en U del volcán","tip":[["〰️","Las <b>jorobas</b> frenan la pelota: pegale firme."],["➡️","Las <b>cintas</b> arrastran la pelota."],["🌋","El hoyo está en la punta del <b>volcán</b>: ni muy fuerte ni muy suave."]],"par":4},
+    {"theme":"kitchen","rail":"red","walls":[[[86.15,154],[86.15,111.85],[34.15,111.85],[34.15,90.15],[86.15,90.15],[86.15,50.12],[87.59,47.9],[88.54,45.42],[88.97,42.81],[88.87,40.16],[88.23,37.59],[87.08,35.2],[85.47,33.1],[83.47,31.36],[81.16,30.07],[78.64,29.27],[76,29],[73.36,29.27],[70.84,30.07],[68.53,31.36],[66.53,33.1],[64.92,35.2],[63.77,37.59],[63.13,40.16],[63.03,42.81],[63.46,45.42],[64.41,47.9],[65.85,50.12],[65.85,69.85],[13.85,69.85],[13.85,132.15],[65.85,132.15],[65.85,154],[86.15,154]]],"zones":[{"type":"belt","rect":[45.1,69.9,13.5,20.3],"dir":[-0.0,1],"f":67.5}],"bumpers":[{"x":46.7,"y":127.9,"r":2.8,"style":"cup","color":"#ef4444"},{"x":44.3,"y":117.3,"r":2.8,"style":"cup","color":"#facc15"},{"x":53.6,"y":116.7,"r":2.8,"style":"cup","color":"#facc15"}],"start":[76,146],"hole":{"x":76,"y":42,"type":"pot"},"wind":2,"name":"La serpentina de las cintas","tip":[["➡️","Las <b>cintas</b> arrastran la pelota."],["🔴","Esquivá los <b>postes</b>."],["💨","Bastante ventilador."]],"par":4},
+    {"theme":"kitchen","rail":"wood","walls":[[[83.55,154],[83.55,72],[60.45,72],[60.45,154],[83.55,154]],[[39.55,124],[39.55,50.49],[41.48,47.85],[42.82,44.87],[43.51,41.68],[43.52,38.41],[42.85,35.21],[41.52,32.23],[39.61,29.58],[37.18,27.39],[34.36,25.75],[31.25,24.74],[28,24.4],[24.75,24.74],[21.64,25.75],[18.82,27.39],[16.39,29.58],[14.48,32.23],[13.15,35.21],[12.48,38.41],[12.49,41.68],[13.18,44.87],[14.52,47.85],[16.45,50.49],[16.45,124],[39.55,124]]],"zones":[{"type":"water","rect":[16.5,72.9,23.1,24]},{"type":"bridge","rect":[23.200000000000003,71.9,8.2,26],"style":"suspension"},{"type":"water","rect":[60.5,102.7,23.1,12.3]}],"ramps":[{"x":72,"y":127,"dir":[0,-1],"len":10,"w":11.55,"h":5}],"tubes":[{"a":[72,77],"b":[28,117],"dir":[0,-1],"speed":39.4,"color":"#facc15"}],"start":[72,146],"hole":{"x":28,"y":40,"type":"pot"},"wind":2,"name":"Dos pistas del salto II","tip":[["🛝","Son dos pistas unidas por un <b>tobogán</b>."],["🌉","Cruzá por el <b>puente</b> angosto… o volá el agua con el hierro."],["🛫","Subí la <b>rampa</b> con fuerza para saltar el agua."]],"par":5},
+    {"theme":"toys","rail":"yellow","walls":[[[40.3,154],[40.3,67.9],[62.4,67.9],[65.08,69.58],[68.04,70.69],[71.17,71.18],[74.33,71.03],[77.39,70.24],[80.23,68.85],[82.73,66.92],[84.79,64.52],[86.33,61.76],[87.28,58.75],[87.6,55.6],[87.28,52.45],[86.33,49.44],[84.79,46.68],[82.73,44.28],[80.23,42.35],[77.39,40.96],[74.33,40.17],[71.17,40.02],[68.04,40.51],[65.08,41.62],[62.4,43.3],[15.7,43.3],[15.7,154],[40.3,154]],[[15.7,82.6],[25.75,82.6]],[[36.65,82.6],[40.3,82.6]]],"zones":[{"type":"water","rect":[15.7,101.8,24.6,13.3]}],"ramps":[{"x":28,"y":127.1,"dir":[0,-1],"len":10,"w":12.3,"h":5}],"gates":[{"id":"g0","seg":[[25.75,82.6],[36.65,82.6]]}],"buttons":[{"x":19.2,"y":104.5,"r":3,"gate":"g0"}],"start":[28,146],"hole":{"x":72,"y":55.6,"type":"toybox"},"wind":2,"name":"La ele del salto II","tip":[["🛫","Subí la <b>rampa</b> con fuerza para saltar el agua."],["🔴","Pegale al <b>botón</b> para abrir la compuerta."],["💨","Bastante ventilador."]],"par":5},
+    {"theme":"toys","rail":"red","walls":[[[38.2,154],[38.2,115.9],[86.2,115.9],[86.2,48.87],[87.27,46.45],[87.87,43.87],[87.98,41.22],[87.58,38.61],[86.7,36.11],[85.36,33.82],[83.62,31.83],[81.53,30.2],[79.18,28.99],[76.64,28.25],[74,28],[71.36,28.25],[68.82,28.99],[66.47,30.2],[64.38,31.83],[62.64,33.82],[61.3,36.11],[60.42,38.61],[60.02,41.22],[60.13,43.87],[60.73,46.45],[61.8,48.87],[61.8,91.5],[13.8,91.5],[13.8,154],[38.2,154]]],"zones":[{"type":"mound","circle":[74,42,11],"f":116.1,"style":"volcano"}],"bumpers":[{"x":69.3,"y":63.9,"r":3.4,"style":"ballpit","color":"#facc15"},{"x":75.4,"y":71.7,"r":3.4,"style":"ballpit","color":"#1e63d6"}],"start":[26,146],"hole":{"x":74,"y":42,"type":"toybox"},"wind":3,"name":"Zigzag del volcán III","tip":[["🔴","Esquivá los <b>postes</b>."],["🌋","El hoyo está en la punta del <b>volcán</b>: ni muy fuerte ni muy suave."],["💨","Mucho ventilador."]],"par":3},
+    {"theme":"toys","rail":"red","walls":[[[63.8,154],[63.8,48.37],[64.73,45.77],[65.16,43.04],[65.1,40.27],[64.54,37.57],[63.5,35.01],[62.01,32.68],[60.12,30.66],[57.9,29.01],[55.41,27.8],[52.75,27.05],[50,26.8],[47.25,27.05],[44.59,27.8],[42.1,29.01],[39.88,30.66],[37.99,32.68],[36.5,35.01],[35.46,37.57],[34.9,40.27],[34.84,43.04],[35.27,45.77],[36.2,48.37],[36.2,154],[63.8,154]],[[36.2,69.5],[48.3,69.5]],[[58.9,69.5],[63.8,69.5]]],"zones":[{"type":"slope","rect":[36.2,79.1,27.6,21.6],"dir":[-1,-0.0],"f":41.5},{"type":"slope","rect":[36.2,114.5,27.6,18.9],"dir":[1,0],"f":66.4}],"gates":[{"id":"g0","seg":[[48.3,69.5],[58.9,69.5]]}],"buttons":[{"x":39.7,"y":100.3,"r":3,"gate":"g0"}],"start":[50,146],"hole":{"x":50,"y":42,"type":"toybox"},"wind":2,"name":"La recta de la compuerta","tip":[["⛰️","Una <b>cuesta</b> la tira para un costado."],["🔴","Pegale al <b>botón</b> para abrir la compuerta."],["💨","Bastante ventilador."]],"par":4},
+    {"theme":"toys","rail":"blue","walls":[[[42,154],[42,63.4],[67.2,63.4],[69.68,64.02],[72.23,64.2],[74.77,63.94],[77.23,63.25],[79.53,62.14],[81.61,60.66],[83.4,58.84],[84.85,56.73],[85.92,54.41],[86.58,51.95],[86.8,49.4],[86.58,46.85],[85.92,44.39],[84.85,42.07],[83.4,39.96],[81.61,38.14],[79.53,36.66],[77.23,35.55],[74.77,34.86],[72.23,34.6],[69.68,34.78],[67.2,35.4],[14,35.4],[14,154],[42,154]]],"zones":[{"type":"waves","rect":[14,94.4,28,19.6],"dir":[0,-1],"n":1,"f":92}],"tunnels":[{"x":14,"y":79.7,"w":28,"h":11,"gap":8.9,"off":-5.8,"axis":"v"},{"x":14,"y":117.4,"w":28,"h":11,"gap":8.7,"off":1.2,"axis":"v"}],"start":[28,146],"hole":{"x":72,"y":49.4,"type":"toybox"},"wind":3,"name":"La ele del túnel III","tip":[["〰️","Las <b>jorobas</b> frenan la pelota: pegale firme."],["📦","Pasá por el <b>túnel de la caja</b>."],["💨","Mucho ventilador."]],"par":4},
+    {"theme":"toys","rail":"blue","walls":[[[37.65,154],[37.65,113.95],[85.65,113.95],[85.65,51.45],[87.33,48.88],[88.45,46.03],[88.97,43.01],[88.86,39.94],[88.13,36.97],[86.81,34.2],[84.96,31.76],[82.65,29.74],[79.97,28.24],[77.05,27.31],[74,27],[70.95,27.31],[68.03,28.24],[65.35,29.74],[63.04,31.76],[61.19,34.2],[59.87,36.97],[59.14,39.94],[59.03,43.01],[59.55,46.03],[60.67,48.88],[62.35,51.45],[62.35,90.65],[14.35,90.65],[14.35,154],[37.65,154]]],"zones":[{"type":"waves","rect":[62.4,62,23.3,22.5],"dir":[0,-1],"n":2,"f":103.9},{"type":"mound","circle":[74,42,12],"f":104.7,"style":"volcano"}],"loops":[{"x":26,"y":133.6,"dir":[0,-1],"len":12,"w":4.8,"vmin":78,"lane":11.65}],"start":[26,146],"hole":{"x":74,"y":42,"type":"toybox"},"wind":3,"name":"Zigzag del volcán IV","tip":[["〰️","Las <b>jorobas</b> frenan la pelota: pegale firme."],["➰","Al <b>rizo</b> hay que entrarle con fuerza: si no, la pelota vuelve."],["🌋","El hoyo está en la punta del <b>volcán</b>: ni muy fuerte ni muy suave."]],"par":4},
+    {"theme":"cesped","rail":"red","walls":[[[85.35,154],[85.35,28.65],[14.65,28.65],[14.65,102.19],[12.87,104.74],[11.66,107.6],[11.06,110.65],[11.1,113.76],[11.79,116.79],[13.08,119.62],[14.93,122.12],[17.25,124.18],[19.95,125.73],[22.91,126.68],[26,127],[29.09,126.68],[32.05,125.73],[34.75,124.18],[37.07,122.12],[38.92,119.62],[40.21,116.79],[40.9,113.76],[40.94,110.65],[40.34,107.6],[39.13,104.74],[37.35,102.19],[37.35,51.35],[62.65,51.35],[62.65,154],[85.35,154]]],"zones":[{"type":"slope","rect":[62.7,73.6,22.7,16.3],"dir":[-1,-0.0],"f":45}],"tunnels":[{"x":14.7,"y":81.2,"w":22.7,"h":11,"gap":8.4,"off":2.6,"axis":"v"}],"loops":[{"x":74,"y":116.7,"dir":[0,-1],"len":12,"w":4.8,"vmin":78,"lane":11.35}],"start":[74,146],"hole":{"x":26,"y":112,"type":"cup"},"wind":2,"name":"La vuelta en U del rizo II","tip":[["📦","Pasá por el <b>túnel de la caja</b>."],["➰","Al <b>rizo</b> hay que entrarle con fuerza: si no, la pelota vuelve."],["⛰️","Una <b>cuesta</b> la tira para un costado."]],"par":5},
+    {"theme":"cesped","rail":"red","walls":[[[34.4,154],[34.4,132.4],[86.4,132.4],[86.4,69.6],[34.4,69.6],[34.4,49.8],[35.75,47.56],[36.62,45.1],[36.99,42.51],[36.83,39.91],[36.15,37.38],[34.98,35.05],[33.37,32.99],[31.38,31.3],[29.09,30.04],[26.6,29.26],[24,29],[21.4,29.26],[18.91,30.04],[16.62,31.3],[14.63,32.99],[13.02,35.05],[11.85,37.38],[11.17,39.91],[11.01,42.51],[11.38,45.1],[12.25,47.56],[13.6,49.8],[13.6,90.4],[65.6,90.4],[65.6,111.6],[13.6,111.6],[13.6,154],[34.4,154]]],"zones":[{"type":"sand","rect":[46.1,111.6,12,10.4]},{"type":"sand","rect":[46.4,69.6,12,10.4]}],"start":[24,146],"hole":{"x":24,"y":42,"type":"cup"},"wind":2,"name":"La serpentina de la arena","tip":[["🏖️","La <b>arena</b> frena muchísimo."],["💨","Bastante viento."]],"par":3},
+    {"theme":"cesped","rail":"wood","walls":[[[41.35,154],[41.35,72],[14.65,72],[14.65,154],[41.35,154]],[[85.35,124],[85.35,49.18],[86.89,46.38],[87.85,43.33],[88.2,40.16],[87.91,36.97],[87.01,33.91],[85.52,31.08],[83.51,28.6],[81.05,26.56],[78.24,25.05],[75.18,24.12],[72,23.8],[68.82,24.12],[65.76,25.05],[62.95,26.56],[60.49,28.6],[58.48,31.08],[56.99,33.91],[56.09,36.97],[55.8,40.16],[56.15,43.33],[57.11,46.38],[58.65,49.18],[58.65,124],[85.35,124]],[[58.65,64.6],[63.3,64.6]],[[80.7,64.6],[85.35,64.6]]],"zones":[{"type":"slope","rect":[14.7,107.6,26.7,16.3],"dir":[1,0],"f":52},{"type":"sand","rect":[72.05,77.3,13.35,12]}],"tunnels":[{"x":14.7,"y":92.8,"w":26.7,"h":11,"gap":8.1,"off":-1.7,"axis":"v"}],"movers":[{"type":"mill","x":72,"y":64.6,"len":11,"w":1.1,"ph":5.2}],"tubes":[{"a":[28,77],"b":[72,117],"dir":[0,-1],"speed":45.4,"color":"#f97316"}],"start":[28,146],"hole":{"x":72,"y":40,"type":"cup"},"wind":3,"name":"Dos pistas del molino","tip":[["🛝","Son dos pistas unidas por un <b>tobogán</b>."],["⛰️","Una <b>cuesta</b> la tira para un costado."],["🌬️","Esperá el momento justo para pasar el <b>molino</b>."]],"par":5},
+    {"theme":"cesped","rail":"wood","walls":[[[83.3,154],[83.3,36.6],[36.43,36.6],[34.01,35.14],[31.34,34.2],[28.53,33.81],[25.71,33.99],[22.98,34.73],[20.45,35.99],[18.22,37.74],[16.39,39.9],[15.02,42.38],[14.18,45.08],[13.9,47.9],[14.18,50.72],[15.02,53.42],[16.39,55.9],[18.22,58.06],[20.45,59.81],[22.98,61.07],[25.71,61.81],[28.53,61.99],[31.34,61.6],[34.01,60.66],[36.43,59.2],[60.7,59.2],[60.7,154],[83.3,154]]],"zones":[{"type":"slope","rect":[60.7,66.2,22.6,18.6],"dir":[-1,-0.0],"f":45},{"type":"sand","rect":[60.7,120.2,11.3,12]}],"bumpers":[{"x":71.8,"y":102.6,"r":2.8,"style":"peg","color":"#1e63d6"},{"x":69.7,"y":115,"r":2.8,"style":"peg","color":"#ef4444"},{"x":76.4,"y":109.6,"r":2.8,"style":"peg","color":"#ef4444"},{"x":65.2,"y":107.6,"r":2.8,"style":"peg","color":"#facc15"}],"start":[72,146],"hole":{"x":28,"y":47.9,"type":"cup"},"wind":2,"name":"La ele de la cuesta II","tip":[["🔴","Esquivá los <b>postes</b>."],["⛰️","Una <b>cuesta</b> la tira para un costado."],["🏖️","La <b>arena</b> frena muchísimo."]],"par":3},
+    {"theme":"cesped","rail":"red","walls":[[[86.1,154],[86.1,89.1],[38.1,89.1],[38.1,50.87],[39.62,48.28],[40.6,45.45],[40.99,42.47],[40.79,39.48],[39.99,36.59],[38.63,33.91],[36.77,31.56],[34.48,29.63],[31.85,28.19],[28.98,27.3],[26,27],[23.02,27.3],[20.15,28.19],[17.52,29.63],[15.23,31.56],[13.37,33.91],[12.01,36.59],[11.21,39.48],[11.01,42.47],[11.4,45.45],[12.38,48.28],[13.9,50.87],[13.9,113.3],[61.9,113.3],[61.9,154],[86.1,154]]],"zones":[{"type":"slope","rect":[13.9,62.8,24.2,16.3],"dir":[1,0],"f":42.5}],"loops":[{"x":74,"y":133.8,"dir":[0,-1],"len":12,"w":4.8,"vmin":69,"lane":12.1}],"plats":[{"rect":[16.625,32.625,18.75,18.75],"h":5,"style":"green"}],"start":[74,146],"hole":{"x":26,"y":42,"type":"cup","plat":0},"wind":3,"name":"Zigzag del escalón II","tip":[["⛰️","Una <b>cuesta</b> la tira para un costado."],["➰","Al <b>rizo</b> hay que entrarle con fuerza: si no, la pelota vuelve."],["🪜","El hoyo está arriba de un <b>escalón</b>: levantá la pelota con el hierro."]],"par":3},
+    {"theme":"ripio","rail":"yellow","walls":[[[62.5,154],[62.5,55.49],[64.26,52.75],[65.44,49.71],[65.97,46.49],[65.84,43.23],[65.05,40.07],[63.64,37.13],[61.66,34.54],[59.2,32.41],[56.35,30.81],[53.24,29.83],[50,29.5],[46.76,29.83],[43.65,30.81],[40.8,32.41],[38.34,34.54],[36.36,37.13],[34.95,40.07],[34.16,43.23],[34.03,46.49],[34.56,49.71],[35.74,52.75],[37.5,55.49],[37.5,154],[62.5,154]],[[37.5,127.1],[46.9,127.1]],[[57.9,127.1],[62.5,127.1]]],"zones":[{"type":"slope","rect":[37.5,112.8,25,14.1],"dir":[1,0],"f":59},{"type":"water","rect":[37.5,79.1,25,16.7]}],"ramps":[{"x":50,"y":107.8,"dir":[0,-1],"len":10,"w":12.5,"h":5}],"plats":[{"rect":[40,35.5,20,20],"h":5,"style":"green"}],"start":[50,146],"hole":{"x":50,"y":45.5,"type":"cup","plat":0},"wind":2,"name":"La recta del escalón III","tip":[["⛰️","Una <b>cuesta</b> la tira para un costado."],["🛫","Subí la <b>rampa</b> con fuerza para saltar el agua."],["🪜","El hoyo está arriba de un <b>escalón</b>: levantá la pelota con el hierro."]],"par":5},
+    {"theme":"ripio","rail":"blue","walls":[[[40,154],[40,67.1],[63.86,67.1],[66.37,68.46],[69.09,69.31],[71.93,69.6],[74.77,69.33],[77.5,68.52],[80.02,67.18],[82.23,65.38],[84.04,63.18],[85.39,60.67],[86.22,57.94],[86.5,55.1],[86.22,52.26],[85.39,49.53],[84.04,47.02],[82.23,44.82],[80.02,43.02],[77.5,41.68],[74.77,40.87],[71.93,40.6],[69.09,40.89],[66.37,41.74],[63.86,43.1],[16,43.1],[16,154],[40,154]]],"zones":[{"type":"waves","rect":[16,103.2,24,26.5],"dir":[0,-1],"n":3,"f":80.7}],"bumpers":[{"x":29.8,"y":82.7,"r":2.8,"style":"peg","color":"#facc15"},{"x":25.8,"y":91.1,"r":2.8,"style":"peg","color":"#22c55e"},{"x":21.1,"y":83.2,"r":2.8,"style":"peg","color":"#1e63d6"},{"x":32.8,"y":95.2,"r":2.8,"style":"peg","color":"#1e63d6"}],"start":[28,146],"hole":{"x":72,"y":55.1,"type":"cup"},"wind":3,"name":"La ele de las jorobas II","tip":[["🔴","Esquivá los <b>postes</b>."],["〰️","Las <b>jorobas</b> frenan la pelota: pegale firme."],["💨","Mucho viento."]],"par":4},
+    {"theme":"ripio","rail":"red","walls":[[[38.4,154],[38.4,116.1],[86.4,116.1],[86.4,50.44],[87.81,47.85],[88.69,45.03],[89,42.09],[88.73,39.15],[87.88,36.32],[86.5,33.72],[84.64,31.43],[82.36,29.55],[79.76,28.15],[76.94,27.29],[74,27],[71.06,27.29],[68.24,28.15],[65.64,29.55],[63.36,31.43],[61.5,33.72],[60.12,36.32],[59.27,39.15],[59,42.09],[59.31,45.03],[60.19,47.85],[61.6,50.44],[61.6,91.3],[13.6,91.3],[13.6,154],[38.4,154]]],"zones":[{"type":"waves","rect":[61.6,63.3,24.8,21.7],"dir":[0,-1],"n":1,"f":97.8}],"start":[26,146],"hole":{"x":74,"y":42,"type":"cup"},"wind":3,"name":"Zigzag de las jorobas II","tip":[["〰️","Las <b>jorobas</b> frenan la pelota: pegale firme."],["💨","Mucho viento."]],"par":4},
+    {"theme":"ripio","rail":"red","walls":[[[39.85,154],[39.85,53.85],[60.15,53.85],[60.15,106.24],[59.35,108.79],[59.01,111.45],[59.15,114.12],[59.76,116.72],[60.83,119.18],[62.31,121.4],[64.17,123.33],[66.34,124.9],[68.75,126.05],[71.33,126.76],[74,127],[76.67,126.76],[79.25,126.05],[81.66,124.9],[83.83,123.33],[85.69,121.4],[87.17,119.18],[88.24,116.72],[88.85,114.12],[88.99,111.45],[88.65,108.79],[87.85,106.24],[87.85,26.15],[12.15,26.15],[12.15,154],[39.85,154]],[[87.85,75.7],[82.4,75.7]],[[72.6,75.7],[60.15,75.7]],[[87.85,85.3],[82.8,85.3]],[[65.2,85.3],[60.15,85.3]]],"zones":[{"type":"waves","rect":[12.2,69.5,27.7,21.4],"dir":[0,-1],"n":2,"f":108.9}],"bumpers":[{"x":25.7,"y":124,"r":2.8,"style":"peg","color":"#facc15"},{"x":26.7,"y":112.9,"r":2.8,"style":"peg","color":"#22c55e"},{"x":35,"y":121.1,"r":2.8,"style":"peg","color":"#1e63d6"},{"x":16.6,"y":126.9,"r":2.8,"style":"peg","color":"#22c55e"}],"movers":[{"type":"mill","x":74,"y":85.3,"len":11,"w":1.7,"ph":4.1}],"gates":[{"id":"g0","seg":[[82.4,75.7],[72.6,75.7]]}],"buttons":[{"x":63.7,"y":65.6,"r":3,"gate":"g0"}],"start":[26,146],"hole":{"x":74,"y":112,"type":"cup"},"wind":3,"name":"La vuelta en U del molino","tip":[["〰️","Las <b>jorobas</b> frenan la pelota: pegale firme."],["🔴","Pegale al <b>botón</b> para abrir la compuerta."],["🔴","Esquivá los <b>postes</b>."]],"par":5},
+    {"theme":"ripio","rail":"yellow","walls":[[[37.1,154],[37.1,112.6],[85.1,112.6],[85.1,52.09],[86.96,49.56],[88.25,46.69],[88.91,43.62],[88.92,40.48],[88.28,37.4],[87.01,34.53],[85.16,31.98],[82.83,29.88],[80.11,28.3],[77.12,27.33],[74,27],[70.88,27.33],[67.89,28.3],[65.17,29.88],[62.84,31.98],[60.99,34.53],[59.72,37.4],[59.08,40.48],[59.09,43.62],[59.75,46.69],[61.04,49.56],[62.9,52.09],[62.9,90.4],[14.9,90.4],[14.9,154],[37.1,154]]],"zones":[{"type":"mound","circle":[74,42,12],"f":117.6,"style":"volcano"}],"tunnels":[{"x":62.9,"y":63.2,"w":22.2,"h":11,"gap":9.8,"off":1.7,"axis":"v"}],"loops":[{"x":26,"y":132.5,"dir":[0,-1],"len":12,"w":4.8,"vmin":73,"lane":11.1}],"start":[26,146],"hole":{"x":74,"y":42,"type":"cup"},"wind":3,"name":"Zigzag del volcán V","tip":[["📦","Pasá por el <b>túnel de la caja</b>."],["➰","Al <b>rizo</b> hay que entrarle con fuerza: si no, la pelota vuelve."],["🌋","El hoyo está en la punta del <b>volcán</b>: ni muy fuerte ni muy suave."]],"par":5}
   );
 
   // =====================================================================
@@ -341,6 +363,7 @@
   const BR = 2.2, WR = 1.2, DT = 1 / 240, MAX_SPEED = 170, SINK_SPEED = 72, GA = 200;
   const WIND_STR = [0, 45, 85, 125];
   const INDOOR = { bath: 1, kitchen: 1, toys: 1 };
+  const RAMP_G = 150;
   function genWind(L) {
     const s = WIND_STR[L.wind || 0];
     if (!s) return [0, 0];
@@ -356,9 +379,30 @@
       const p = R(b.x, b.y, b.w, b.h);
       for (let i = 0; i < 4; i++) segs.push({ a: p[i], b: p[i + 1], r: 0.6 });
     }
+    // cajas con túnel: dos bloques a los costados del canal
+    const tunnelBlocks = [];
+    for (const t of L.tunnels || []) {
+      if ((t.axis || 'v') === 'v') {
+        const cx = t.x + t.w / 2 + (t.off || 0);
+        tunnelBlocks.push([t.x, t.y, cx - t.gap / 2 - t.x, t.h], [cx + t.gap / 2, t.y, t.x + t.w - cx - t.gap / 2, t.h]);
+      } else {
+        const cy = t.y + t.h / 2 + (t.off || 0);
+        tunnelBlocks.push([t.x, t.y, t.w, cy - t.gap / 2 - t.y], [t.x, cy + t.gap / 2, t.w, t.y + t.h - cy - t.gap / 2]);
+      }
+    }
+    // rizos: canal en el medio y tabiques hasta los bordes
+    for (const lp of L.loops || []) {
+      const [dx, dy] = lp.dir, ex = lp.x + dx * lp.len, ey = lp.y + dy * lp.len;
+      const x0 = Math.min(lp.x, ex), y0 = Math.min(lp.y, ey), x1 = Math.max(lp.x, ex), y1 = Math.max(lp.y, ey);
+      const g = lp.w + 0.8, ln = lp.lane;
+      if (dx === 0) tunnelBlocks.push([lp.x - ln, y0, ln - g, y1 - y0], [lp.x + g, y0, ln - g, y1 - y0]);
+      else tunnelBlocks.push([x0, lp.y - ln, x1 - x0, ln - g], [x0, lp.y + g, x1 - x0, ln - g]);
+    }
+    for (const rb of tunnelBlocks) { if (rb[2] <= 0.2 || rb[3] <= 0.2) continue; const p = R(...rb); for (let i = 0; i < 4; i++) segs.push({ a: p[i], b: p[i + 1], r: 0.6 }); }
+    const outlines = (L.walls || []).filter(pl => pl.length > 3 && pl[0][0] === pl[pl.length - 1][0] && pl[0][1] === pl[pl.length - 1][1]);
     const platSegs = [];
     (L.plats || []).forEach((P, i) => { const p = R(...P.rect); for (let k = 0; k < 4; k++) platSegs.push({ i, a: p[k], b: p[k + 1], r: 0.5 }); });
-    return { L, segs, platSegs, floor: THEMES[L.theme].floor, holeR: HOLE_R[L.hole.type] || 3.5 };
+    return { L, segs, platSegs, tunnelBlocks, outlines, floor: THEMES[L.theme].floor, holeR: HOLE_R[L.hole.type] || 3.5 };
   }
 
   function newWorld(C, nBalls) {
@@ -366,7 +410,7 @@
     const balls = [];
     for (let i = 0; i < nBalls; i++) {
       const off = nBalls > 1 ? (i === 0 ? -3.2 : 3.2) : 0;
-      balls.push({ x: L.start[0] + off, y: L.start[1], vx: 0, vy: 0, in: false, out: false, strokes: 0, lx: L.start[0] + off, ly: L.start[1], tube: null, cool: 0, h: 0, vz: 0, air: false, plat: -1 });
+      balls.push({ x: L.start[0] + off, y: L.start[1], vx: 0, vy: 0, in: false, out: false, strokes: 0, lx: L.start[0] + off, ly: L.start[1], tube: null, cool: 0, h: 0, vz: 0, air: false, plat: -1, ramp: -1 });
     }
     return {
       t: 0, balls, wind: [0, 0],
@@ -457,6 +501,18 @@
     for (let bi = 0; bi < w.balls.length; bi++) {
       const b = w.balls[bi];
       if (b.in || b.out) continue;
+      if (b.tube && b.tube.loop !== undefined) {
+        b.tube.t += dt;
+        if (b.tube.t >= 0.55) {
+          const lp = L.loops[b.tube.loop], [dx, dy] = lp.dir, sg = b.tube.dir;
+          const u = sg > 0 ? lp.len + 2.6 : -2.6;
+          b.x = lp.x + dx * u; b.y = lp.y + dy * u;
+          b.vx = dx * sg * b.tube.v * 0.8; b.vy = dy * sg * b.tube.v * 0.8;
+          b.tube = null; b.cool = 0.15;
+          if (ev) ev.push({ k: 'loopOut', b: bi });
+        }
+        continue;
+      }
       if (b.tube) {
         b.tube.t += dt;
         const tb = L.tubes[b.tube.i];
@@ -507,13 +563,51 @@
           const f = z.f * Math.sin(Math.PI * d / z.circle[2]) * (z.type === 'mound' ? 1 : -1);
           b.vx += dx / d * f * dt; b.vy += dy / d * f * dt;
         }
+        if (z.type === 'waves') {
+          const [rx, ry, rw, rh] = z.rect, [dx, dy] = z.dir;
+          const len = dx ? rw : rh;
+          const u = dx > 0 ? b.x - rx : dx < 0 ? rx + rw - b.x : dy > 0 ? b.y - ry : ry + rh - b.y;
+          const f = -z.f * Math.sin(2 * Math.PI * z.n * u / len);
+          b.vx += dx * f * dt; b.vy += dy * f * dt;
+        }
         if (z.type === 'sand') dec = 230;
         else if (z.type === 'ice') dec = 13;
         if ((z.type === 'slope' || z.type === 'belt') && !b.restPin) { b.vx += z.dir[0] * z.f * dt; b.vy += z.dir[1] * z.f * dt; }
       }
+      // rampas de salto
+      let onRamp = -1;
+      (L.ramps || []).forEach((rp, ri) => {
+        const ux = b.x - rp.x, uy = b.y - rp.y, u = ux * rp.dir[0] + uy * rp.dir[1], v = -ux * rp.dir[1] + uy * rp.dir[0];
+        if (u >= 0 && u <= rp.len && Math.abs(v) <= rp.w) { onRamp = ri; b.vx -= rp.dir[0] * RAMP_G * dt; b.vy -= rp.dir[1] * RAMP_G * dt; }
+      });
       const sp = Math.hypot(b.vx, b.vy);
       if (sp > 0) { const ns = Math.max(0, sp - dec * dt); b.vx *= ns / sp; b.vy *= ns / sp; }
       b.x += b.vx * dt; b.y += b.vy * dt;
+      if (b.ramp >= 0 && onRamp < 0) {
+        const rp = L.ramps[b.ramp], ux = b.x - rp.x, uy = b.y - rp.y, u = ux * rp.dir[0] + uy * rp.dir[1];
+        const va = b.vx * rp.dir[0] + b.vy * rp.dir[1];
+        if (u > rp.len && va > 12) {
+          b.air = true; b.h = rp.h; b.vz = va * 0.42; b.plat = -1;
+          if (ev) ev.push({ k: 'jump', b: bi });
+          b.ramp = -1;
+          bodies.push({ o: b, r: BR, m: 1, ball: bi, air: true, plat: -1 });
+          continue;
+        }
+      }
+      b.ramp = onRamp;
+      // rizos
+      if (b.cool <= 0) for (let li = 0; li < (L.loops || []).length; li++) {
+        const lp = L.loops[li], [dx, dy] = lp.dir;
+        const ux = b.x - lp.x, uy = b.y - lp.y, u = ux * dx + uy * dy, v = -ux * dy + uy * dx;
+        if (Math.abs(v) > lp.w) continue;
+        const va = b.vx * dx + b.vy * dy;
+        const atIn = u >= -0.5 && u <= 3 && va > 0, atOut = u <= lp.len + 0.5 && u >= lp.len - 3 && va < 0;
+        if (!atIn && !atOut) continue;
+        if (Math.abs(va) >= lp.vmin) { b.tube = { loop: li, t: 0, v: Math.abs(va), dir: atIn ? 1 : -1 }; b.vx = b.vy = 0; if (ev) ev.push({ k: 'loopIn', b: bi }); }
+        else { b.vx = -b.vx * 0.55; b.vy = -b.vy * 0.55; b.x -= dx * Math.sign(va) * 1.2; b.y -= dy * Math.sign(va) * 1.2; b.cool = 0.2; if (ev) ev.push({ k: 'loopFail', b: bi }); }
+        break;
+      }
+      if (b.tube) continue;
       bodies.push({ o: b, r: BR, m: 1, ball: bi, air: false, plat: -1 });
     }
     for (const p of w.push) {
@@ -662,6 +756,11 @@
     let dist = run(seedsAround(target.x, target.y, target.r || 2, 0));
     for (let pass = 0; pass < 2; pass++) {
       const seeds = seedsAround(target.x, target.y, target.r || 2, 0);
+      for (const rp of L.ramps || []) {
+        const ex = rp.x + rp.dir[0] * (rp.len + 18), ey = rp.y + rp.dir[1] * (rp.len + 18);
+        const dExit = dist[idx(ex, ey)];
+        if (dExit < 1e8) seeds.push(...seedsAround(rp.x, rp.y, 3, dExit + rp.len + 6));
+      }
       for (const tb of L.tubes || []) {
         const land = tb.speed * tb.speed / (2 * C.floor);
         const ex = tb.b[0] + tb.dir[0] * (4 + land), ey = tb.b[1] + tb.dir[1] * (4 + land);
@@ -769,7 +868,7 @@
   let net = null, isHost = false, lobbyPeer = null, pendingHost = null, pendingSettle = null, shotN = 0, rematch = { me: false, them: false };
   let cpuPlan = null;
   let club = 'putt';
-  const ironAllowed = () => mode !== 'solo' || levelIdx >= 5;
+  const ironAllowed = () => mode !== 'solo' || levelIdx >= 9;
 
   const store = {
     get(k, d) { try { const v = localStorage.getItem('golf.' + k); return v == null ? d : JSON.parse(v); } catch (_) { return d; } },
@@ -794,16 +893,16 @@
     if (C) {
       x0 = 1e9; y0 = 1e9; x1 = -1e9; y1 = -1e9;
       for (const pl of C.L.walls) for (const [x, y] of pl) { x0 = Math.min(x0, x); x1 = Math.max(x1, x); y0 = Math.min(y0, y); y1 = Math.max(y1, y); }
-      y0 = Math.min(y0, C.L.hole.y - (C.L.hole.type === 'toilet' ? 16 : 6));
-      x0 -= 3; x1 += 3; y0 -= 3; y1 += 3;
+      x0 -= 4; x1 += 4; y0 -= 4; y1 += 4;
     }
-    K = Math.min((W - 8) / (x1 - x0), (H - top - bottom) / (y1 - y0));
+    const liftTop = 16, hUnits = (y1 - y0) * TILT + (liftTop + LANE_H) * LIFT;
+    K = Math.min((W - 8) / (x1 - x0), (H - top - bottom) / hUnits);
     OX = (W - (x1 - x0) * K) / 2 - x0 * K;
-    OY = top + Math.max(0, (H - top - bottom - (y1 - y0) * K) / 2) - y0 * K;
+    OY = top + liftTop * LIFT * K + Math.max(0, (H - top - bottom - hUnits * K) / 2) - y0 * K * TILT;
     patterns = {};
   }
   window.addEventListener('resize', resize);
-  const SX = x => OX + x * K, SY = y => OY + y * K;
+  const SX = x => OX + x * K, SY = (y, h = 0) => OY + y * K * TILT - h * K * LIFT;
 
   // ---------- Hoyos y turnos ----------
   function loadHole(idx, nBalls, wind) {
@@ -962,7 +1061,7 @@
   function aimParams(a) {
     const dx = a.sx - a.x, dy = a.sy - a.y;
     const len = Math.hypot(dx, dy);
-    return { ang: Math.atan2(dy, dx), pow: Math.min(1, len / (Math.min(W, H) * 0.42)), len };
+    return { ang: Math.atan2(dy / TILT, dx), pow: Math.min(1, len / (Math.min(W, H) * 0.42)), len };
   }
   canvas.addEventListener('pointerdown', e => { if (canAim()) aim = { sx: e.clientX, sy: e.clientY, x: e.clientX, y: e.clientY }; });
   window.addEventListener('pointermove', e => { if (aim) { aim.x = e.clientX; aim.y = e.clientY; } });
@@ -1147,9 +1246,43 @@
   // =====================================================================
   //  DIBUJO
   // =====================================================================
+  // ---------- Proyección (vista inclinada) ----------
+  const TILT = 0.66, LIFT = 0.62, LANE_H = 3.6, RAIL_H = 2.4;
+  const P = (x, y, h = 0) => [SX(x), SY(y, h)];
+  function ell(x, y, h, r, ry) { ctx.beginPath(); ctx.ellipse(SX(x), SY(y, h), Math.max(0.1, r * K), Math.max(0.1, (ry ?? r) * K * TILT), 0, 0, Math.PI * 2); }
+  function poly(pts) { ctx.beginPath(); pts.forEach((p, i) => { const [x, y] = P(p[0], p[1], p[2] || 0); i ? ctx.lineTo(x, y) : ctx.moveTo(x, y); }); ctx.closePath(); }
+  function rr(x, y, w, h, r) { ctx.beginPath(); ctx.moveTo(x + r, y); ctx.arcTo(x + w, y, x + w, y + h, r); ctx.arcTo(x + w, y + h, x, y + h, r); ctx.arcTo(x, y + h, x, y, r); ctx.arcTo(x, y, x + w, y, r); ctx.closePath(); }
+  function shade(hex, f) { const n = parseInt(hex.slice(1), 16); const c = v => Math.max(0, Math.min(255, Math.round(v * f))); return `rgb(${c(n >> 16 & 255)},${c(n >> 8 & 255)},${c(n & 255)})`; }
+  function platAt(x, y, maxH = 1e9) { let best = null; for (const P2 of C.L.plats || []) if (inRect(x, y, P2.rect) && P2.h <= maxH && (!best || P2.h > best.h)) best = P2; return best; }
+
+  // Altura visual del terreno (lomas, volcán, jorobas, rampas)
+  function terrainH(x, y) {
+    let h = 0;
+    for (const z of C.L.zones || []) {
+      if (z.type === 'mound' || z.type === 'bowl') {
+        const d = Math.hypot(x - z.circle[0], y - z.circle[1]);
+        if (d < z.circle[2]) h += (z.style === 'volcano' ? 6.5 : Math.min(5, z.f / 22)) * (z.type === 'bowl' ? -0.6 : 1) * (1 + Math.cos(Math.PI * d / z.circle[2])) / 2;
+      } else if (z.type === 'waves' && inRect(x, y, z.rect)) {
+        const [rx, ry, rw, rh] = z.rect, [dx, dy] = z.dir, len = dx ? rw : rh;
+        const u = dx > 0 ? x - rx : dx < 0 ? rx + rw - x : dy > 0 ? y - ry : ry + rh - y;
+        h += Math.min(7, z.f / 14) * (1 - Math.cos(2 * Math.PI * z.n * u / len)) / 2;
+      } else if (z.type === 'slope' && inRect(x, y, z.rect)) {
+        const [rx, ry, rw, rh] = z.rect, [dx, dy] = z.dir, len = dx ? rw : rh;
+        const u = dx > 0 ? x - rx : dx < 0 ? rx + rw - x : dy > 0 ? y - ry : ry + rh - y;
+        h += 2.5 * (1 - u / len);
+      }
+    }
+    for (const rp of C.L.ramps || []) {
+      const ux = x - rp.x, uy = y - rp.y, u = ux * rp.dir[0] + uy * rp.dir[1], v = -ux * rp.dir[1] + uy * rp.dir[0];
+      if (u >= 0 && u <= rp.len && Math.abs(v) <= rp.w) h += rp.h * u / rp.len;
+    }
+    return h;
+  }
+
+  // ---------- Texturas ----------
   let patterns = {};
-  function pattern(key, make) {
-    if (!patterns[key]) { const off = document.createElement('canvas'); make(off); patterns[key] = ctx.createPattern(off, 'repeat'); }
+  function pattern(key, w, h, make) {
+    if (!patterns[key]) { const off = document.createElement('canvas'); off.width = w; off.height = h; make(off.getContext('2d'), w, h); patterns[key] = ctx.createPattern(off, 'repeat'); }
     return patterns[key];
   }
   function noise(o, w, h, amt) {
@@ -1157,358 +1290,451 @@
     for (let i = 0; i < img.data.length; i += 4) { const n = (Math.random() - 0.5) * amt; img.data[i] += n; img.data[i + 1] += n; img.data[i + 2] += n; }
     o.putImageData(img, 0, 0);
   }
-  function floorPattern(theme) {
-    const t = Math.max(4, K * 8);
-    return pattern(theme + t.toFixed(1), off => {
-      const o = off.getContext('2d');
-      if (theme === 'grass' || theme === 'garden') {
-        off.width = 64; off.height = 64;
-        o.fillStyle = theme === 'grass' ? '#3fae49' : '#4a9d3f'; o.fillRect(0, 0, 64, 64); noise(o, 64, 64, 18);
-      } else if (theme === 'bath') {
-        const s = Math.round(t); off.width = off.height = s * 2;
-        o.fillStyle = '#e9f4fb'; o.fillRect(0, 0, s * 2, s * 2);
-        o.fillStyle = '#cfe6f5'; o.fillRect(0, 0, s, s); o.fillRect(s, s, s, s);
-        o.strokeStyle = '#b8d3e6'; o.lineWidth = 1; o.strokeRect(0.5, 0.5, s, s); o.strokeRect(s + 0.5, 0.5, s, s); o.strokeRect(0.5, s + 0.5, s, s); o.strokeRect(s + 0.5, s + 0.5, s, s);
-      } else if (theme === 'kitchen') {
-        const s = Math.round(t * 1.2); off.width = off.height = s * 2;
-        o.fillStyle = '#f4efe6'; o.fillRect(0, 0, s * 2, s * 2);
-        o.fillStyle = '#d9cbb5'; o.fillRect(0, 0, s, s); o.fillRect(s, s, s, s);
-      } else {
-        const s = Math.round(t * 1.5); off.width = s * 4; off.height = s;
-        o.fillStyle = '#c99a63'; o.fillRect(0, 0, s * 4, s);
-        o.fillStyle = '#b8874f'; o.fillRect(0, 0, s * 2, s);
-        o.strokeStyle = 'rgba(80,40,10,.3)'; o.strokeRect(0.5, 0.5, s * 2, s - 1); o.strokeRect(s * 2 + 0.5, 0.5, s * 2 - 1, s - 1);
-        noise(o, s * 4, s, 10);
-      }
-    });
+  const turf = () => pattern('turf', 64, 64, (o, w, h) => { o.fillStyle = '#2f9a45'; o.fillRect(0, 0, w, h); noise(o, w, h, 22); });
+  function bgPattern(theme) {
+    const s = Math.max(6, Math.round(K * 6));
+    if (theme === 'cesped') return pattern('bg-cesped', 96, 96, (o, w, h) => { o.fillStyle = '#5d9b3f'; o.fillRect(0, 0, w, h); noise(o, w, h, 26); for (let i = 0; i < 120; i++) { o.fillStyle = `rgba(30,70,20,${Math.random() * 0.25})`; o.fillRect(Math.random() * w, Math.random() * h, 1, 3); } });
+    if (theme === 'ripio') return pattern('bg-ripio', 96, 96, (o, w, h) => { o.fillStyle = '#9b9692'; o.fillRect(0, 0, w, h); for (let i = 0; i < 700; i++) { const g = 90 + Math.random() * 110; o.fillStyle = `rgb(${g},${g - 4},${g - 8})`; o.beginPath(); o.arc(Math.random() * w, Math.random() * h, 0.8 + Math.random() * 1.8, 0, Math.PI * 2); o.fill(); } });
+    if (theme === 'cancha') return pattern('bg-cancha', 96, 96, (o, w, h) => { o.fillStyle = '#b8b9b6'; o.fillRect(0, 0, w, h); noise(o, w, h, 14); });
+    if (theme === 'patio') return pattern('bg-patio' + s, s * 4, s * 2, (o, w, h) => { o.fillStyle = '#c98f86'; o.fillRect(0, 0, w, h); o.strokeStyle = '#a8716a'; o.lineWidth = 1.5; for (let x = 0; x <= w; x += s * 2) { o.strokeRect(x + 0.5, 0.5, s * 2, s); o.strokeRect(x - s + 0.5, s + 0.5, s * 2, s); } noise(o, w, h, 10); });
+    if (theme === 'bath') return pattern('bg-bath' + s, s * 2, s * 2, (o, w, h) => { o.fillStyle = '#e8f3fa'; o.fillRect(0, 0, w, h); o.fillStyle = '#cfe4f2'; o.fillRect(0, 0, s, s); o.fillRect(s, s, s, s); o.strokeStyle = '#b6d0e2'; o.strokeRect(0.5, 0.5, s, s); o.strokeRect(s + 0.5, s + 0.5, s, s); });
+    if (theme === 'kitchen') return pattern('bg-kitchen' + s, s * 2, s * 2, (o, w, h) => { o.fillStyle = '#f2ece2'; o.fillRect(0, 0, w, h); o.fillStyle = '#d8c7ae'; o.fillRect(0, 0, s, s); o.fillRect(s, s, s, s); });
+    return pattern('bg-toys', 80, 80, (o, w, h) => { o.fillStyle = '#5b3f8c'; o.fillRect(0, 0, w, h); noise(o, w, h, 16); o.fillStyle = 'rgba(255,255,255,.07)'; for (let i = 0; i < 8; i++) { o.beginPath(); o.arc(Math.random() * w, Math.random() * h, 3 + Math.random() * 6, 0, Math.PI * 2); o.fill(); } });
   }
-  const WALL_STYLE = {
-    grass: { c: '#7a4a22', hi: '#a8713d' }, garden: { c: '#8b8b86', hi: '#b9b9b2' },
-    bath: { c: '#f8fafc', hi: '#ffffff', edge: '#9fb6c6' }, kitchen: { c: '#7a5230', hi: '#b07d4b' }, toys: { c: '#e2534a', hi: '#ff8a80' },
+  const RAILS = {
+    red: ['#e23b3b', '#8e1414'], yellow: ['#f5c518', '#9a7600'], blue: ['#2f74e0', '#123f8f'],
+    wood: ['#c08a52', '#6b4423'], white: ['#f8fafc', '#94a3b8'],
   };
-  const BG = { grass: '#14532d', garden: '#1f3d22', bath: '#7aa6c2', kitchen: '#5b4636', toys: '#3b2a5e' };
 
-  const HK = 0.5;
-  const hOff = h => h * K * HK;
-  function platAt(x, y, maxH = 1e9) { let best = null; for (const P of C.L.plats || []) if (inRect(x, y, P.rect) && P.h <= maxH && (!best || P.h > best.h)) best = P; return best; }
-  function rr(x, y, w, h, r) { ctx.beginPath(); ctx.moveTo(x + r, y); ctx.arcTo(x + w, y, x + w, y + h, r); ctx.arcTo(x + w, y + h, x, y + h, r); ctx.arcTo(x, y + h, x, y, r); ctx.arcTo(x, y, x + w, y, r); ctx.closePath(); }
+  // ---------- Fondo y pista ----------
+  function drawBackground(time) {
+    const th = C.L.theme;
+    ctx.save();
+    ctx.translate(0, OY % 1); ctx.fillStyle = bgPattern(th); ctx.fillRect(0, 0, W, H);
+    ctx.restore();
+    if (th === 'cancha') {
+      // líneas pintadas de la cancha
+      ctx.strokeStyle = 'rgba(255,255,255,.75)'; ctx.lineWidth = Math.max(2, K * 0.8);
+      ctx.beginPath(); ctx.ellipse(SX(50), SY(170), 70 * K, 70 * K * TILT, 0, Math.PI, Math.PI * 2); ctx.stroke();
+      ctx.strokeStyle = 'rgba(30,110,200,.6)';
+      ctx.beginPath(); ctx.moveTo(0, SY(8)); ctx.lineTo(W, SY(30)); ctx.stroke();
+    }
+    if (th === 'cesped') {
+      ctx.fillStyle = 'rgba(255,255,255,.05)';
+      for (let y = -40; y < 220; y += 24) { const a = SY(y), b = SY(y + 12); ctx.fillRect(0, a, W, b - a); }
+    }
+  }
 
-  function courseClip() {
-    // superficie jugable: los rectángulos cerrados de las paredes
-    ctx.beginPath();
+  function drawLane() {
+    const outs = C.outlines;
+    // sombra y costado de la pista
+    for (const pl of outs) {
+      ctx.save(); ctx.translate(K * 1.2, K * 1.2);
+      poly(pl.map(p => [p[0], p[1], -LANE_H])); ctx.fillStyle = 'rgba(0,0,0,.28)'; ctx.fill(); ctx.restore();
+      poly(pl.map(p => [p[0], p[1], -LANE_H])); ctx.fillStyle = '#7a7f86'; ctx.fill();
+      // caras del costado (se ven las de adelante)
+      for (let i = 0; i < pl.length - 1; i++) {
+        const a = pl[i], b = pl[i + 1];
+        poly([[a[0], a[1], 0], [b[0], b[1], 0], [b[0], b[1], -LANE_H], [a[0], a[1], -LANE_H]]);
+        ctx.fillStyle = '#5b6470'; ctx.fill();
+      }
+    }
+    for (const pl of outs) {
+      poly(pl.map(p => [p[0], p[1], 0]));
+      ctx.save(); ctx.translate(SX(0) % 64, SY(0) % 64); ctx.fillStyle = turf(); ctx.translate(-(SX(0) % 64), -(SY(0) % 64)); ctx.fill(); ctx.restore();
+    }
+    // baldosa de salida (chapita)
+    const [sx0, sy0] = C.L.start;
+    poly([[sx0 - 5, sy0 - 4], [sx0 + 5, sy0 - 4], [sx0 + 5, sy0 + 5], [sx0 - 5, sy0 + 5]]);
+    ctx.fillStyle = '#d7dde3'; ctx.fill(); ctx.strokeStyle = '#9aa3ab'; ctx.lineWidth = 1; ctx.stroke();
+  }
+
+  function drawRails() {
+    const [c, d] = RAILS[C.L.rail || 'red'];
+    ctx.lineCap = 'round'; ctx.lineJoin = 'round';
+    const lw = Math.max(2, WR * 2 * K);
+    const stroke = (pl, h) => { ctx.beginPath(); pl.forEach((p, i) => { const [x, y] = P(p[0], p[1], h); i ? ctx.lineTo(x, y) : ctx.moveTo(x, y); }); ctx.stroke(); };
     for (const pl of C.L.walls) {
-      const closed = pl.length > 3 && pl[0][0] === pl[pl.length - 1][0] && pl[0][1] === pl[pl.length - 1][1];
-      if (!closed) continue;
-      pl.forEach((p, i) => i ? ctx.lineTo(SX(p[0]), SY(p[1])) : ctx.moveTo(SX(p[0]), SY(p[1])));
-      ctx.closePath();
+      ctx.strokeStyle = d; ctx.lineWidth = lw;
+      for (let h = 0; h < RAIL_H; h += 0.5) stroke(pl, h);
+      ctx.strokeStyle = c; stroke(pl, RAIL_H);
+      ctx.strokeStyle = 'rgba(255,255,255,.45)'; ctx.lineWidth = Math.max(1, lw * 0.3); ctx.save(); ctx.translate(0, -lw * 0.2); stroke(pl, RAIL_H); ctx.restore();
+    }
+  }
+
+  // ---------- Suelo: zonas, hoyo, toboganes ----------
+  function drawZonesGround(time) {
+    for (const z of C.L.zones || []) {
+      if (z.type === 'water') {
+        if (z.rect) poly([[z.rect[0], z.rect[1]], [z.rect[0] + z.rect[2], z.rect[1]], [z.rect[0] + z.rect[2], z.rect[1] + z.rect[3]], [z.rect[0], z.rect[1] + z.rect[3]]]);
+        else ell(z.circle[0], z.circle[1], 0, z.circle[2]);
+        ctx.save(); ctx.fillStyle = '#1f7fc4'; ctx.fill(); ctx.clip();
+        const cx = z.rect ? z.rect[0] + z.rect[2] / 2 : z.circle[0], cy = z.rect ? z.rect[1] + z.rect[3] / 2 : z.circle[1];
+        ctx.strokeStyle = 'rgba(255,255,255,.35)'; ctx.lineWidth = 1.5;
+        for (let i = 0; i < 5; i++) { const r = ((time * 5 + i * 6) % 30); ell(cx + Math.sin(i * 2) * 6, cy + Math.cos(i * 3) * 5, 0, r); ctx.stroke(); }
+        ctx.fillStyle = 'rgba(0,0,0,.18)'; ctx.fillRect(0, 0, W, SY(z.rect ? z.rect[1] + 2 : cy - z.circle[2] + 2));
+        ctx.restore();
+      } else if (z.type === 'sand') {
+        poly([[z.rect[0], z.rect[1]], [z.rect[0] + z.rect[2], z.rect[1]], [z.rect[0] + z.rect[2], z.rect[1] + z.rect[3]], [z.rect[0], z.rect[1] + z.rect[3]]]);
+        ctx.fillStyle = '#e8d3a0'; ctx.fill();
+      } else if (z.type === 'ice') {
+        poly([[z.rect[0], z.rect[1]], [z.rect[0] + z.rect[2], z.rect[1]], [z.rect[0] + z.rect[2], z.rect[1] + z.rect[3]], [z.rect[0], z.rect[1] + z.rect[3]]]);
+        ctx.fillStyle = z.style === 'tubwater' ? 'rgba(120,200,240,.6)' : 'rgba(214,190,255,.8)'; ctx.fill();
+        ctx.fillStyle = 'rgba(255,255,255,.7)';
+        for (let i = 0; i < 8; i++) { ell(z.rect[0] + (i * 9.1) % z.rect[2], z.rect[1] + (i * 5.3 + time * 2) % z.rect[3], 0, 0.6 + i % 3 * 0.4); ctx.fill(); }
+      } else if (z.type === 'belt') {
+        const [rx, ry, rw, rh] = z.rect, [dx, dy] = z.dir;
+        poly([[rx, ry], [rx + rw, ry], [rx + rw, ry + rh], [rx, ry + rh]]); ctx.fillStyle = '#3f3f46'; ctx.fill();
+        ctx.save(); ctx.clip(); ctx.strokeStyle = 'rgba(250,204,21,.85)'; ctx.lineWidth = 2;
+        const off = (time * 12) % 6;
+        for (let gx = rx + 3; gx < rx + rw; gx += 6) for (let gy = ry + 3; gy < ry + rh; gy += 6) {
+          const cx = gx + dx * off - dx * 3, cy = gy + dy * off - dy * 3, s = 1.4, px = -dy, py = dx;
+          ctx.beginPath(); ctx.moveTo(...P(cx - dx * s + px * s, cy - dy * s + py * s)); ctx.lineTo(...P(cx, cy)); ctx.lineTo(...P(cx - dx * s - px * s, cy - dy * s - py * s)); ctx.stroke();
+        }
+        ctx.restore();
+      } else if (z.type === 'slope') {
+        const [rx, ry, rw, rh] = z.rect, [dx, dy] = z.dir;
+        const hA = (x, y) => terrainH(x, y);
+        poly([[rx, ry, hA(rx + 0.01, ry + 0.01)], [rx + rw, ry, hA(rx + rw - 0.01, ry + 0.01)], [rx + rw, ry + rh, hA(rx + rw - 0.01, ry + rh - 0.01)], [rx, ry + rh, hA(rx + 0.01, ry + rh - 0.01)]]);
+        ctx.fillStyle = 'rgba(255,255,255,.12)'; ctx.fill();
+        ctx.strokeStyle = 'rgba(255,255,255,.6)'; ctx.lineWidth = 2;
+        for (let gx = rx + 5; gx < rx + rw; gx += 9) for (let gy = ry + 5; gy < ry + rh; gy += 9) {
+          const s = 1.6, px = -dy, py = dx, h = hA(gx, gy);
+          ctx.beginPath(); ctx.moveTo(...P(gx - dx * s + px * s, gy - dy * s + py * s, h)); ctx.lineTo(...P(gx, gy, h)); ctx.lineTo(...P(gx - dx * s - px * s, gy - dy * s - py * s, h)); ctx.stroke();
+        }
+      }
+    }
+  }
+
+  // relieve: jorobas, lomas, pozos y volcán (franjas con altura)
+  function drawRelief() {
+    for (const z of C.L.zones || []) {
+      if (z.type === 'waves') {
+        const [rx, ry, rw, rh] = z.rect, [dx, dy] = z.dir, N = 28;
+        const along = dx !== 0;
+        for (let i = 0; i < N; i++) {
+          const t0 = i / N, t1 = (i + 1) / N;
+          let q;
+          if (!along) {
+            const yA = dy < 0 ? ry + rh - t0 * rh : ry + t0 * rh, yB = dy < 0 ? ry + rh - t1 * rh : ry + t1 * rh;
+            q = [[rx, yA, terrainH(rx + 0.1, yA)], [rx + rw, yA, terrainH(rx + rw - 0.1, yA)], [rx + rw, yB, terrainH(rx + rw - 0.1, yB)], [rx, yB, terrainH(rx + 0.1, yB)]];
+          } else {
+            const xA = dx > 0 ? rx + t0 * rw : rx + rw - t0 * rw, xB = dx > 0 ? rx + t1 * rw : rx + rw - t1 * rw;
+            q = [[xA, ry, terrainH(xA, ry + 0.1)], [xB, ry, terrainH(xB, ry + 0.1)], [xB, ry + rh, terrainH(xB, ry + rh - 0.1)], [xA, ry + rh, terrainH(xA, ry + rh - 0.1)]];
+          }
+          const slope = q[2][2] - q[0][2];
+          poly(q);
+          ctx.fillStyle = shade('#f2b705', 1 + Math.max(-0.5, Math.min(0.45, slope * 0.55))); ctx.fill();
+          if (Math.abs(slope) < 0.08 && q[0][2] > 2) { ctx.strokeStyle = 'rgba(255,255,255,.7)'; ctx.lineWidth = 1.5; ctx.stroke(); }
+        }
+      } else if (z.type === 'mound' || z.type === 'bowl') {
+        const [cx, cy, r] = z.circle, volcano = z.style === 'volcano';
+        const steps = 12;
+        for (let i = 0; i <= steps; i++) {
+          const rr2 = r * (1 - i / steps), h = terrainH(cx + rr2 - 0.01, cy);
+          ell(cx, cy, h, Math.max(0.2, rr2));
+          const base = volcano ? '#3fa34d' : z.type === 'bowl' ? '#2c7f3b' : '#3aa24c';
+          ctx.fillStyle = shade(base, 0.8 + 0.35 * (i / steps) * (z.type === 'bowl' ? -0.5 : 1)); ctx.fill();
+        }
+        if (volcano) {
+          ctx.strokeStyle = 'rgba(20,80,30,.45)'; ctx.lineWidth = 1.2;
+          for (let a = 0; a < 12; a++) {
+            const ang = a * Math.PI / 6, x1 = cx + Math.cos(ang) * r * 0.95, y1 = cy + Math.sin(ang) * r * 0.95;
+            ctx.beginPath(); ctx.moveTo(...P(x1, y1, terrainH(x1, y1))); ctx.lineTo(...P(cx + Math.cos(ang) * 2, cy + Math.sin(ang) * 2, terrainH(cx + Math.cos(ang) * 2, cy + Math.sin(ang) * 2))); ctx.stroke();
+          }
+        }
+      }
+    }
+  }
+
+  function drawHoleGround(time) {
+    const h = C.L.hole;
+    if (h.plat !== undefined) return;
+    const hz = terrainH(h.x, h.y), r = C.holeR;
+    if (h.type === 'toilet' || h.type === 'pot' || h.type === 'toybox') return;   // se dibujan como objetos
+    ell(h.x, h.y, hz, r * 1.35); ctx.fillStyle = 'rgba(255,255,255,.25)'; ctx.fill();
+    ell(h.x, h.y, hz, r); ctx.fillStyle = '#0b1f12'; ctx.fill();
+  }
+  function drawCupAt(x, y, hz, r) {
+    ell(x, y, hz, r * 1.35); ctx.fillStyle = 'rgba(255,255,255,.25)'; ctx.fill();
+    ell(x, y, hz, r); ctx.fillStyle = '#0b1f12'; ctx.fill();
+  }
+  function drawFlag(x, y, hz, time) {
+    const [bx, by] = P(x + 0.8, y, hz), top = by - 16 * K * LIFT;
+    ctx.strokeStyle = '#e5e7eb'; ctx.lineWidth = 2; ctx.beginPath(); ctx.moveTo(bx, by); ctx.lineTo(bx, top); ctx.stroke();
+    const wv = Math.sin(time * 4) * K * 0.6;
+    ctx.fillStyle = '#facc15'; ctx.beginPath(); ctx.moveTo(bx, top); ctx.lineTo(bx + 8 * K, top + 2.5 * K + wv); ctx.lineTo(bx, top + 5 * K); ctx.fill();
+  }
+
+  // ---------- Objetos con volumen ----------
+  function cylinder(x, y, r, h, col, top) {
+    ell(x, y, 0, r); ctx.fillStyle = shade(col, 0.6); ctx.fill();
+    const [x0, y0] = P(x - r, y, 0), [, y1] = P(x - r, y, h);
+    ctx.fillStyle = shade(col, 0.78); ctx.fillRect(x0, y1, r * 2 * K, y0 - y1);
+    const g = ctx.createLinearGradient(x0, 0, x0 + r * 2 * K, 0);
+    g.addColorStop(0, 'rgba(0,0,0,.18)'); g.addColorStop(0.35, 'rgba(255,255,255,.18)'); g.addColorStop(1, 'rgba(0,0,0,.25)');
+    ctx.fillStyle = g; ctx.fillRect(x0, y1, r * 2 * K, y0 - y1);
+    ell(x, y, h, r); ctx.fillStyle = top || col; ctx.fill();
+  }
+  function box(x, y, w, d, h, col, topCol) {
+    // frente
+    poly([[x, y + d, 0], [x + w, y + d, 0], [x + w, y + d, h], [x, y + d, h]]); ctx.fillStyle = shade(col, 0.78); ctx.fill();
+    poly([[x, y, h], [x + w, y, h], [x + w, y + d, h], [x, y + d, h]]); ctx.fillStyle = topCol || col; ctx.fill();
+    ctx.strokeStyle = 'rgba(0,0,0,.15)'; ctx.lineWidth = 1; ctx.stroke();
+  }
+
+  function drawBumper(k, time) {
+    const st = k.style;
+    if (st === 'peg') cylinder(k.x, k.y, k.r, 4.5, k.color || '#ef4444');
+    else if (st === 'mushroom') { cylinder(k.x, k.y, k.r * 0.5, 2.5, '#f5f5f4'); ell(k.x, k.y, 3.2, k.r); ctx.fillStyle = '#ef4444'; ctx.fill(); ctx.fillStyle = '#fff'; for (const [dx, dy] of [[-0.4, -0.2], [0.35, -0.3], [0.1, 0.35]]) { ell(k.x + dx * k.r, k.y + dy * k.r, 3.3, k.r * 0.18); ctx.fill(); } }
+    else if (st === 'roll') { cylinder(k.x, k.y, k.r, 4, '#f8fafc'); ell(k.x, k.y, 4, k.r * 0.4); ctx.fillStyle = '#c4a57a'; ctx.fill(); }
+    else if (st === 'cup') { cylinder(k.x, k.y, k.r, 3.5, '#f97316'); ell(k.x, k.y, 3.5, k.r * 0.72); ctx.fillStyle = '#7c2d12'; ctx.fill(); }
+    else if (st === 'ballpit') { const [x, y] = P(k.x, k.y, k.r); ctx.beginPath(); ctx.arc(x, y, k.r * K, 0, Math.PI * 2); ctx.fillStyle = ['#ef4444', '#3b82f6', '#facc15', '#22c55e'][Math.round(k.x) % 4]; ctx.fill(); ctx.beginPath(); ctx.arc(x - k.r * K * 0.3, y - k.r * K * 0.3, k.r * K * 0.3, 0, Math.PI * 2); ctx.fillStyle = 'rgba(255,255,255,.5)'; ctx.fill(); }
+    else if (st === 'rock') { const [x, y] = P(k.x, k.y, k.r * 0.6); ctx.beginPath(); ctx.ellipse(x, y, k.r * K, k.r * K * 0.8, 0, 0, Math.PI * 2); const g = ctx.createRadialGradient(x - k.r * K * .3, y - k.r * K * .3, 1, x, y, k.r * K); g.addColorStop(0, '#d4d4d4'); g.addColorStop(1, '#6b6b6b'); ctx.fillStyle = g; ctx.fill(); }
+    else cylinder(k.x, k.y, k.r, 4, '#888');
+  }
+  function drawBlock(b) {
+    if (b.style === 'tub') { box(b.x, b.y, b.w, b.h, 6, '#f8fafc', '#ffffff'); poly([[b.x + 2, b.y + 2, 6], [b.x + b.w - 2, b.y + 2, 6], [b.x + b.w - 2, b.y + b.h - 2, 6], [b.x + 2, b.y + b.h - 2, 6]]); ctx.fillStyle = '#9ad7f5'; ctx.fill(); }
+    else if (b.style === 'sink') { box(b.x, b.y, b.w, b.h, 7, '#f1f5f9'); ell(b.x + b.w / 2, b.y + b.h * 0.55, 7, b.w * 0.32, b.h * 0.3); ctx.fillStyle = '#cfe0ec'; ctx.fill(); }
+    else if (b.style === 'fridge') box(b.x, b.y, b.w, b.h, 11, '#e5e7eb');
+    else if (b.style === 'toyblock') { const col = ['#ef4444', '#3b82f6', '#22c55e', '#f59e0b'][Math.abs(Math.round(b.x + b.y)) % 4]; box(b.x, b.y, b.w, b.h, 7, col); const [x, y] = P(b.x + b.w / 2, b.y + b.h, 3.5); ctx.fillStyle = 'rgba(255,255,255,.9)'; ctx.font = `900 ${b.w * K * 0.55}px system-ui`; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillText('ABCD'[Math.abs(Math.round(b.x)) % 4], x, y); }
+    else box(b.x, b.y, b.w, b.h, 6, '#d6d3d1');
+  }
+  function drawTunnel(t) {
+    const H2 = 7, col = '#f1f1ee';
+    box(t.x, t.y, t.w, t.h, H2, col, '#fafaf7');
+    // boca del túnel en la cara de adelante
+    if ((t.axis || 'v') === 'v') {
+      const cx = t.x + t.w / 2 + (t.off || 0), g = t.gap / 2;
+      ctx.beginPath();
+      const [ax, ay] = P(cx - g, t.y + t.h, 0), [bx] = P(cx + g, t.y + t.h, 0), [, ty] = P(cx, t.y + t.h, 4.2);
+      ctx.moveTo(ax, ay); ctx.lineTo(ax, (ay + ty) / 2); ctx.quadraticCurveTo((ax + bx) / 2, ty - (ay - ty) * 0.2, bx, (ay + ty) / 2); ctx.lineTo(bx, ay); ctx.closePath();
+      ctx.fillStyle = '#1f2937'; ctx.fill();
+    } else {
+      const cy = t.y + t.h / 2 + (t.off || 0);
+      poly([[t.x, cy - t.gap / 2, H2 + 0.01], [t.x + t.w, cy - t.gap / 2, H2 + 0.01], [t.x + t.w, cy + t.gap / 2, H2 + 0.01], [t.x, cy + t.gap / 2, H2 + 0.01]]);
+      ctx.fillStyle = 'rgba(0,0,0,.15)'; ctx.fill();
+    }
+  }
+  function drawLoop(lp, ballInLoop) {
+    const [dx, dy] = lp.dir, mx = lp.x + dx * lp.len / 2, my = lp.y + dy * lp.len / 2;
+    // tabiques
+    const g = lp.w + 0.8, ln = lp.lane;
+    const col = '#f5c518';
+    if (dx === 0) { const y0 = Math.min(lp.y, lp.y + dy * lp.len); box(lp.x - ln, y0, ln - g, lp.len, 2.2, '#d6d3d1'); box(lp.x + g, y0, ln - g, lp.len, 2.2, '#d6d3d1'); }
+    else { const x0 = Math.min(lp.x, lp.x + dx * lp.len); box(x0, lp.y - ln, lp.len, ln - g, 2.2, '#d6d3d1'); box(x0, lp.y + g, lp.len, ln - g, 2.2, '#d6d3d1'); }
+    const [cx, cy] = P(mx, my, 6.5), rad = 6.5 * K * LIFT * 1.05;
+    ctx.lineWidth = Math.max(4, lp.w * K * (dx === 0 ? 0.55 : 0.9));
+    ctx.strokeStyle = shade(col, 0.7); ctx.beginPath(); ctx.ellipse(cx + 1.5, cy + 1.5, dx === 0 ? rad * 0.62 : rad, rad, 0, 0, Math.PI * 2); ctx.stroke();
+    ctx.strokeStyle = col; ctx.beginPath(); ctx.ellipse(cx, cy, dx === 0 ? rad * 0.62 : rad, rad, 0, 0, Math.PI * 2); ctx.stroke();
+    ctx.strokeStyle = 'rgba(255,255,255,.5)'; ctx.lineWidth = 1.5; ctx.beginPath(); ctx.ellipse(cx, cy, (dx === 0 ? rad * 0.62 : rad) - 2, rad - 2, 0, Math.PI * 1.1, Math.PI * 1.7); ctx.stroke();
+    if (ballInLoop) {
+      const { t, dir } = ballInLoop, k2 = Math.min(1, t / 0.55);
+      const a = Math.PI / 2 + (dir > 0 ? 1 : -1) * k2 * Math.PI * 2;
+      const bx = cx + Math.cos(a) * (dx === 0 ? rad * 0.62 : rad) * (dx === 0 ? 1 : 1), by = cy + Math.sin(a) * rad;
+      ctx.beginPath(); ctx.arc(bx, by, BR * K, 0, Math.PI * 2); ctx.fillStyle = '#fff'; ctx.fill(); ctx.strokeStyle = '#999'; ctx.lineWidth = 1; ctx.stroke();
+    }
+  }
+  function drawRamp(rp) {
+    const [dx, dy] = rp.dir, nx = -dy, ny = dx;
+    const a = (u, v, h) => [rp.x + dx * u + nx * v, rp.y + dy * u + ny * v, h];
+    const top = [a(0, -rp.w, 0), a(rp.len, -rp.w, rp.h), a(rp.len, rp.w, rp.h), a(0, rp.w, 0)];
+    // caras laterales y frente
+    poly([a(rp.len, -rp.w, 0), a(rp.len, rp.w, 0), a(rp.len, rp.w, rp.h), a(rp.len, -rp.w, rp.h)]); ctx.fillStyle = '#1e4fa8'; ctx.fill();
+    poly([a(0, rp.w, 0), a(rp.len, rp.w, 0), a(rp.len, rp.w, rp.h)]); ctx.fillStyle = '#1d4ed8'; ctx.fill();
+    poly([a(0, -rp.w, 0), a(rp.len, -rp.w, 0), a(rp.len, -rp.w, rp.h)]); ctx.fillStyle = '#1d4ed8'; ctx.fill();
+    poly(top);
+    const [gx0, gy0] = P(rp.x, rp.y, 0), [gx1, gy1] = P(rp.x + dx * rp.len, rp.y + dy * rp.len, rp.h);
+    const gr = ctx.createLinearGradient(gx0, gy0, gx1, gy1); gr.addColorStop(0, '#1d4ed8'); gr.addColorStop(1, '#60a5fa');
+    ctx.fillStyle = gr; ctx.fill();
+    // franja blanca
+    poly([a(rp.len * 0.15, -rp.w * 0.25, rp.h * 0.15), a(rp.len, -rp.w * 0.25, rp.h), a(rp.len, rp.w * 0.25, rp.h), a(rp.len * 0.15, rp.w * 0.25, rp.h * 0.15)]);
+    ctx.fillStyle = 'rgba(255,255,255,.85)'; ctx.fill();
+  }
+  function drawBridge(z) {
+    const [rx, ry, rw, rh] = z.rect;
+    const vertical = rh >= rw;
+    // tablero
+    poly([[rx, ry, 0.4], [rx + rw, ry, 0.4], [rx + rw, ry + rh, 0.4], [rx, ry + rh, 0.4]]); ctx.fillStyle = '#d23b2a'; ctx.fill();
+    ctx.strokeStyle = 'rgba(0,0,0,.25)'; ctx.lineWidth = 1;
+    if (vertical) for (let y = ry; y < ry + rh; y += 2.5) { ctx.beginPath(); ctx.moveTo(...P(rx, y, 0.4)); ctx.lineTo(...P(rx + rw, y, 0.4)); ctx.stroke(); }
+    else for (let x = rx; x < rx + rw; x += 2.5) { ctx.beginPath(); ctx.moveTo(...P(x, ry, 0.4)); ctx.lineTo(...P(x, ry + rh, 0.4)); ctx.stroke(); }
+    if (z.style === 'suspension') {
+      const towers = vertical ? [[rx, ry + 3], [rx + rw, ry + 3], [rx, ry + rh - 3], [rx + rw, ry + rh - 3]] : [[rx + 3, ry], [rx + 3, ry + rh], [rx + rw - 3, ry], [rx + rw - 3, ry + rh]];
+      ctx.strokeStyle = '#c0261a'; ctx.lineWidth = Math.max(2, K * 0.9);
+      for (const [x, y] of towers) { ctx.beginPath(); ctx.moveTo(...P(x, y, 0.4)); ctx.lineTo(...P(x, y, 9)); ctx.stroke(); }
+      ctx.lineWidth = 1.2; ctx.strokeStyle = '#e04a3a';
+      const pairs = vertical ? [[0, 2], [1, 3]] : [[0, 2], [1, 3]];
+      for (const [i, j] of pairs) {
+        const A = towers[i], B = towers[j];
+        ctx.beginPath(); ctx.moveTo(...P(A[0], A[1], 9));
+        const mx = (A[0] + B[0]) / 2, my = (A[1] + B[1]) / 2; const [qx, qy] = P(mx, my, 2.5);
+        const [ex, ey] = P(B[0], B[1], 9); ctx.quadraticCurveTo(qx, qy, ex, ey); ctx.stroke();
+      }
+    }
+  }
+  function drawMill(s) {
+    const m = s.mill;
+    cylinder(m.x, m.y, 2.2, 3.5, '#7c4a1e', '#a16207');
+    const [ax, ay] = P(s.a[0], s.a[1], 2.2), [bx, by] = P(s.b[0], s.b[1], 2.2);
+    ctx.lineCap = 'round';
+    ctx.strokeStyle = 'rgba(0,0,0,.25)'; ctx.lineWidth = s.r * 2 * K; ctx.beginPath(); ctx.moveTo(...P(s.a[0], s.a[1], 0)); ctx.lineTo(...P(s.b[0], s.b[1], 0)); ctx.stroke();
+    ctx.strokeStyle = '#f5f5f4'; ctx.lineWidth = s.r * 2 * K; ctx.beginPath(); ctx.moveTo(ax, ay); ctx.lineTo(bx, by); ctx.stroke();
+    ctx.strokeStyle = '#dc2626'; ctx.lineWidth = s.r * K; const [hx, hy] = P(m.x, m.y, 2.2);
+    ctx.beginPath(); ctx.moveTo(ax, ay); ctx.lineTo((ax + hx) / 2, (ay + hy) / 2); ctx.moveTo(bx, by); ctx.lineTo((bx + hx) / 2, (by + hy) / 2); ctx.stroke();
+    ell(m.x, m.y, 3.6, 1.4); ctx.fillStyle = '#facc15'; ctx.fill();
+  }
+  function drawSlide(s) {
+    const [cx, cy] = s.c;
+    ctx.lineCap = 'round';
+    ctx.strokeStyle = 'rgba(0,0,0,.3)'; ctx.lineWidth = s.r * 2 * K; ctx.beginPath(); ctx.moveTo(...P(s.a[0], cy, 0)); ctx.lineTo(...P(s.b[0], cy, 0)); ctx.stroke();
+    ctx.strokeStyle = '#27272a'; ctx.beginPath(); ctx.moveTo(...P(s.a[0], cy, 1.6)); ctx.lineTo(...P(s.b[0], cy, 1.6)); ctx.stroke();
+    ctx.strokeStyle = '#7c4a1e'; ctx.lineWidth = K * 1.4; ctx.beginPath(); ctx.moveTo(...P(s.b[0] + s.r, cy, 1.6)); ctx.lineTo(...P(s.b[0] + s.r + 6, cy, 1.6)); ctx.stroke();
+  }
+  function drawPushable(p) {
+    const [x, y] = P(p.x, p.y, p.r * 0.8), r = p.r * K;
+    ell(p.x, p.y, 0, p.r); ctx.fillStyle = 'rgba(0,0,0,.25)'; ctx.fill();
+    ctx.beginPath(); ctx.ellipse(x, y, r, r * 0.8, 0, 0, Math.PI * 2); ctx.fillStyle = '#facc15'; ctx.fill();
+    ctx.beginPath(); ctx.arc(x + r * 0.35, y - r * 0.55, r * 0.5, 0, Math.PI * 2); ctx.fill();
+    ctx.fillStyle = '#f97316'; ctx.beginPath(); ctx.ellipse(x + r * 0.85, y - r * 0.5, r * 0.3, r * 0.15, 0, 0, Math.PI * 2); ctx.fill();
+    ctx.fillStyle = '#111'; ctx.beginPath(); ctx.arc(x + r * 0.45, y - r * 0.65, r * 0.08, 0, Math.PI * 2); ctx.fill();
+  }
+  function drawPlat(Pl, time) {
+    const [px, py, pw, ph] = Pl.rect;
+    box(px, py, pw, ph, Pl.h, '#9aa0a8');
+    poly([[px, py, Pl.h], [px + pw, py, Pl.h], [px + pw, py + ph, Pl.h], [px, py + ph, Pl.h]]);
+    ctx.save(); ctx.fillStyle = turf(); ctx.fill(); ctx.restore();
+    ctx.strokeStyle = 'rgba(255,255,255,.5)'; ctx.lineWidth = 1.5; ctx.stroke();
+    if (C.L.hole.plat !== undefined && C.L.plats[C.L.hole.plat] === Pl) drawHoleObj(Pl.h, time);
+  }
+  function drawTube(tb, time) {
+    const [ax, ay] = P(tb.a[0], tb.a[1], 0), [bx, by] = P(tb.b[0], tb.b[1], 0);
+    // boca (embudo)
+    ell(tb.a[0], tb.a[1], 0, 4.2); ctx.fillStyle = tb.color; ctx.fill();
+    ell(tb.a[0], tb.a[1], 0, 2.8); ctx.fillStyle = '#1f2937'; ctx.fill();
+    // salida
+    ell(tb.b[0], tb.b[1], 0, 3.6); ctx.strokeStyle = tb.color; ctx.lineWidth = 2.5; ctx.stroke();
+    // tobogán por arriba
+    const [, ayH] = P(tb.a[0], tb.a[1], 8), [, byH] = P(tb.b[0], tb.b[1], 6);
+    const mx = (ax + bx) / 2, my = Math.min(ayH, byH) - 20;
+    ctx.save(); ctx.globalAlpha = 0.85; ctx.lineCap = 'round';
+    ctx.strokeStyle = shade(tb.color, 0.7); ctx.lineWidth = 3.8 * K; ctx.beginPath(); ctx.moveTo(ax, ay); ctx.quadraticCurveTo(ax, ayH, (ax + mx) / 2, (ayH + my) / 2); ctx.quadraticCurveTo(mx, my, (bx + mx) / 2, (byH + my) / 2); ctx.quadraticCurveTo(bx, byH, bx, by); ctx.stroke();
+    ctx.strokeStyle = tb.color; ctx.lineWidth = 2.6 * K; ctx.stroke();
+    ctx.restore();
+  }
+  function drawHoleObj(hz, time) {
+    const h = C.L.hole, r = C.holeR;
+    if (h.type === 'toilet') {
+      box(h.x - r * 1.7, h.y - r * 3.2, r * 3.4, r * 1.2, 11, '#f8fafc');
+      ell(h.x, h.y + r * 0.2, hz + 3, r * 1.9, r * 2.2); ctx.fillStyle = '#e2e8f0'; ctx.fill();
+      ell(h.x, h.y, hz + 4, r * 1.9, r * 2.2); ctx.fillStyle = '#ffffff'; ctx.fill(); ctx.strokeStyle = '#94a3b8'; ctx.lineWidth = 1; ctx.stroke();
+      ell(h.x, h.y + r * 0.1, hz + 4, r * 1.25, r * 1.55); ctx.fillStyle = '#7dd3fc'; ctx.fill();
+      ell(h.x, h.y, hz + 4, r); ctx.fillStyle = '#0c4a6e'; ctx.fill();
+    } else if (h.type === 'pot') {
+      cylinder(h.x, h.y, r * 1.8, 2.5, '#9ca3af', '#d1d5db');
+      ell(h.x, h.y, 2.5, r); ctx.fillStyle = '#1f2937'; ctx.fill();
+      ctx.strokeStyle = '#6b7280'; ctx.lineWidth = K * 0.9; ctx.beginPath(); ctx.moveTo(...P(h.x - r * 1.8, h.y, 2)); ctx.lineTo(...P(h.x - r * 2.6, h.y, 2)); ctx.moveTo(...P(h.x + r * 1.8, h.y, 2)); ctx.lineTo(...P(h.x + r * 2.6, h.y, 2)); ctx.stroke();
+    } else if (h.type === 'toybox') {
+      box(h.x - r * 2, h.y - r * 2, r * 4, r * 4, 2, '#7c3aed', '#8b5cf6');
+      ell(h.x, h.y, 2, r); ctx.fillStyle = '#1e1b4b'; ctx.fill();
+    } else {
+      drawCupAt(h.x, h.y, hz, r);
+      drawFlag(h.x, h.y, hz, time);
+    }
+  }
+
+  function drawBall(b, i, time) {
+    if (b.in) return;
+    if (b.tube && b.tube.loop !== undefined) return;   // lo dibuja el rizo
+    let hb, sx, sy;
+    if (b.tube) {
+      const tb = C.L.tubes[b.tube.i], k2 = Math.min(1, b.tube.t / (tubeLen(tb) / 70));
+      const x = tb.a[0] + (tb.b[0] - tb.a[0]) * k2, y = tb.a[1] + (tb.b[1] - tb.a[1]) * k2;
+      [sx, sy] = P(x, y, 8 * Math.sin(Math.PI * k2) + 2);
+      ctx.beginPath(); ctx.arc(sx, sy, BR * K, 0, Math.PI * 2); ctx.fillStyle = 'rgba(255,255,255,.85)'; ctx.fill();
+      return;
+    }
+    const under = platAt(b.x, b.y, b.h + 0.01), gh = (under ? under.h : 0) + terrainH(b.x, b.y);
+    hb = b.air ? Math.max(b.h, gh) : gh;
+    // sombra en el piso
+    ell(b.x + 0.4, b.y + 0.3, gh, BR * (1 + (hb - gh) * 0.03)); ctx.fillStyle = `rgba(0,0,0,${0.32 / (1 + (hb - gh) * 0.12)})`; ctx.fill();
+    [sx, sy] = P(b.x, b.y, hb + BR * 0.9);
+    const r = BR * K;
+    ctx.globalAlpha = b.out ? 0.3 : 1;
+    ctx.beginPath(); ctx.arc(sx, sy, r, 0, Math.PI * 2);
+    const g = ctx.createRadialGradient(sx - r * .35, sy - r * .35, r * .1, sx, sy, r); g.addColorStop(0, '#fff'); g.addColorStop(1, '#cfcfcf');
+    ctx.fillStyle = g; ctx.fill();
+    if (world.balls.length > 1 || mode !== 'solo') { ctx.beginPath(); ctx.arc(sx, sy, r * 0.45, 0, Math.PI * 2); ctx.fillStyle = PCOL[i].main; ctx.fill(); }
+    ctx.globalAlpha = 1;
+    if ((phase === 'aim' || phase === 'cpu' || phase === 'waitRemote') && turn === i && !b.out) {
+      ell(b.x, b.y, gh, BR + 1.6 + Math.sin(time * 6) * 0.4); ctx.strokeStyle = PCOL[i].main; ctx.lineWidth = 2; ctx.stroke();
     }
   }
 
   function drawCourse(time) {
-    const L = C.L, th = L.theme;
-    ctx.fillStyle = BG[th]; ctx.fillRect(0, 0, W, H);
-    if (th === 'bath' || th === 'kitchen' || th === 'toys') {
-      ctx.fillStyle = 'rgba(255,255,255,.05)';
-      for (let i = 0; i < 12; i++) ctx.fillRect(0, i * H / 12, W, H / 24);
-    }
-    ctx.save();
-    courseClip(); ctx.fillStyle = floorPattern(th); ctx.fill();
-    if (th === 'grass' || th === 'garden') {
-      ctx.clip();
-      ctx.fillStyle = 'rgba(255,255,255,.05)';
-      for (let y = 0; y < 160; y += 16) ctx.fillRect(OX, SY(y), 100 * K, 8 * K);
-    }
-    ctx.restore();
-    drawZones(time);
-    if (th === 'garden') drawFlowers();
-    // botones
-    for (const bt of L.buttons || []) {
-      const x = SX(bt.x), y = SY(bt.y), r = bt.r * K, on = world.gates[bt.gate];
-      ctx.beginPath(); ctx.arc(x, y + 2, r * 1.15, 0, Math.PI * 2); ctx.fillStyle = '#555'; ctx.fill();
-      ctx.beginPath(); ctx.arc(x, y + (on ? 1 : -1), r, 0, Math.PI * 2); ctx.fillStyle = on ? '#4ade80' : '#ef4444'; ctx.fill();
-      ctx.strokeStyle = 'rgba(255,255,255,.6)'; ctx.lineWidth = 1.5; ctx.stroke();
-      if (!on) { ctx.beginPath(); ctx.arc(x, y, r + 3 + Math.sin(time * 5) * 2, 0, Math.PI * 2); ctx.strokeStyle = 'rgba(239,68,68,.5)'; ctx.stroke(); }
-    }
-    drawTubes(time, false);
-    if (C.L.hole.plat === undefined) drawHole(time);
-    drawPlats();
-    if (C.L.hole.plat !== undefined) drawHole(time);
-    for (const b of L.blocks || []) drawBlock(b);
-    drawWalls();
-    for (const g of L.gates || []) if (!world.gates[g.id]) {
-      ctx.strokeStyle = '#facc15'; ctx.lineWidth = 2.8 * K; ctx.lineCap = 'butt';
-      ctx.beginPath(); ctx.moveTo(SX(g.seg[0][0]), SY(g.seg[0][1])); ctx.lineTo(SX(g.seg[1][0]), SY(g.seg[1][1])); ctx.stroke();
-      ctx.strokeStyle = '#1f2937'; ctx.lineWidth = 2.8 * K; ctx.setLineDash([K * 2, K * 2]);
-      ctx.beginPath(); ctx.moveTo(SX(g.seg[0][0]), SY(g.seg[0][1])); ctx.lineTo(SX(g.seg[1][0]), SY(g.seg[1][1])); ctx.stroke(); ctx.setLineDash([]);
-    }
-    for (const k of L.bumpers || []) drawBumper(k, time);
-    for (const s of moverSegs(C, world.t)) drawMover(s);
-    for (const p of world.push) drawPushable(p);
+    drawBackground(time);
+    drawLane();
+    drawZonesGround(time);
+    drawRelief();
+    for (const bt of C.L.buttons || []) { const on = world.gates[bt.gate]; cylinder(bt.x, bt.y, bt.r, on ? 0.4 : 1.4, on ? '#4ade80' : '#ef4444'); }
+    drawHoleGround(time);
+    for (const tb of C.L.tubes || []) { ell(tb.a[0], tb.a[1], 0, 4.2); ctx.fillStyle = tb.color; ctx.fill(); ell(tb.a[0], tb.a[1], 0, 2.8); ctx.fillStyle = '#1f2937'; ctx.fill(); ell(tb.b[0], tb.b[1], 0, 3.6); ctx.strokeStyle = tb.color; ctx.lineWidth = 2.5; ctx.stroke(); }
+    drawRails();
+    // objetos ordenados de atrás hacia adelante
+    const items = [];
+    const L = C.L;
+    for (const k of L.bumpers || []) items.push([k.y + k.r, () => drawBumper(k, time)]);
+    for (const b of L.blocks || []) items.push([b.y + b.h, () => drawBlock(b)]);
+    for (const t of L.tunnels || []) items.push([t.y + t.h, () => drawTunnel(t)]);
+    const loopBall = {};
+    world.balls.forEach(b => { if (b.tube && b.tube.loop !== undefined) loopBall[b.tube.loop] = b.tube; });
+    (L.loops || []).forEach((lp, li) => items.push([Math.max(lp.y, lp.y + lp.dir[1] * lp.len) + 0.5, () => drawLoop(lp, loopBall[li])]));
+    for (const rp of L.ramps || []) items.push([Math.max(rp.y, rp.y + rp.dir[1] * rp.len) + rp.w * Math.abs(rp.dir[0]), () => drawRamp(rp)]);
+    for (const z of L.zones || []) if (z.type === 'bridge') items.push([z.rect[1] + z.rect[3], () => drawBridge(z)]);
+    for (const s of moverSegs(C, world.t)) items.push([s.mill ? s.mill.y : s.c[1], () => s.mill ? drawMill(s) : drawSlide(s)]);
+    for (const g of L.gates || []) if (!world.gates[g.id]) items.push([Math.max(g.seg[0][1], g.seg[1][1]), () => { ctx.strokeStyle = '#facc15'; ctx.lineWidth = 2.6 * K; ctx.lineCap = 'butt'; ctx.beginPath(); ctx.moveTo(...P(g.seg[0][0], g.seg[0][1], 1.6)); ctx.lineTo(...P(g.seg[1][0], g.seg[1][1], 1.6)); ctx.stroke(); ctx.strokeStyle = '#1f2937'; ctx.setLineDash([K * 2, K * 2]); ctx.stroke(); ctx.setLineDash([]); }]);
+    for (const p of world.push) items.push([p.y + p.r, () => drawPushable(p)]);
+    for (const Pl of L.plats || []) items.push([Pl.rect[1] + Pl.rect[3], () => drawPlat(Pl, time)]);
+    if (L.hole.plat === undefined) items.push([L.hole.y + (L.hole.type === 'cup' ? 0 : C.holeR), () => drawHoleObj(terrainH(L.hole.x, L.hole.y), time)]);
+    world.balls.forEach((b, i) => items.push([b.y + 0.01, () => drawBall(b, i, time)]));
+    for (const tb of L.tubes || []) items.push([Math.max(tb.a[1], tb.b[1]) + 5, () => drawTube(tb, time)]);
+    items.sort((a, b) => a[0] - b[0]).forEach(it => it[1]());
   }
 
-  function drawZones(time) {
-    for (const z of C.L.zones || []) {
-      ctx.save();
-      ctx.beginPath();
-      if (z.rect) ctx.rect(SX(z.rect[0]), SY(z.rect[1]), z.rect[2] * K, z.rect[3] * K);
-      else ctx.arc(SX(z.circle[0]), SY(z.circle[1]), z.circle[2] * K, 0, Math.PI * 2);
-      if (z.type === 'water') {
-        ctx.fillStyle = '#2b8fd6'; ctx.fill(); ctx.clip();
-        ctx.strokeStyle = 'rgba(255,255,255,.35)'; ctx.lineWidth = 1.5;
-        for (let i = 0; i < 6; i++) { const cx = SX((z.rect ? z.rect[0] + z.rect[2] / 2 : z.circle[0]) + Math.sin(i * 2.1) * 12), cy = SY((z.rect ? z.rect[1] + z.rect[3] / 2 : z.circle[1]) + Math.cos(i * 1.7) * 12); ctx.beginPath(); ctx.arc(cx, cy, ((time * 6 + i * 5) % 20) * K * 0.5, 0, Math.PI * 2); ctx.stroke(); }
-      } else if (z.type === 'sand') {
-        ctx.fillStyle = '#ead7a4'; ctx.fill(); ctx.clip();
-        ctx.fillStyle = 'rgba(150,110,50,.3)';
-        for (let i = 0; i < 40; i++) { ctx.fillRect(SX(z.rect[0] + (i * 7.3) % z.rect[2]), SY(z.rect[1] + (i * 3.7) % z.rect[3]), 2, 2); }
-      } else if (z.type === 'ice') {
-        if (z.style === 'tubwater') { ctx.fillStyle = 'rgba(120,200,240,.55)'; ctx.fill(); }
-        else { ctx.fillStyle = 'rgba(214,190,255,.75)'; ctx.fill(); ctx.clip(); ctx.fillStyle = 'rgba(255,255,255,.7)'; for (let i = 0; i < 10; i++) { ctx.beginPath(); ctx.arc(SX(z.rect[0] + (i * 9.1) % z.rect[2]), SY(z.rect[1] + (i * 5.3 + time * 2) % z.rect[3]), (1 + i % 3) * K * 0.6, 0, Math.PI * 2); ctx.fill(); } }
-      } else if (z.type === 'bridge') {
-        ctx.fillStyle = '#a0703c'; ctx.fill(); ctx.clip();
-        ctx.strokeStyle = 'rgba(60,30,10,.5)'; ctx.lineWidth = 1;
-        for (let y = z.rect[1]; y < z.rect[1] + z.rect[3]; y += 3) { ctx.beginPath(); ctx.moveTo(SX(z.rect[0]), SY(y)); ctx.lineTo(SX(z.rect[0] + z.rect[2]), SY(y)); ctx.stroke(); }
-      } else if (z.type === 'mound' || z.type === 'bowl') {
-        const [cx, cy, r] = z.circle, X = SX(cx), Y = SY(cy), Rr = r * K, up = z.type === 'mound';
-        const g = ctx.createRadialGradient(X - Rr * 0.3, Y - Rr * 0.3, Rr * 0.05, X, Y, Rr);
-        if (up) { g.addColorStop(0, 'rgba(255,255,255,.35)'); g.addColorStop(0.55, 'rgba(255,255,255,.08)'); g.addColorStop(1, 'rgba(0,0,0,.22)'); }
-        else { g.addColorStop(0, 'rgba(0,0,0,.32)'); g.addColorStop(0.6, 'rgba(0,0,0,.12)'); g.addColorStop(1, 'rgba(255,255,255,.18)'); }
-        ctx.fillStyle = g; ctx.fill();
-        ctx.strokeStyle = up ? 'rgba(255,255,255,.22)' : 'rgba(0,0,0,.18)'; ctx.lineWidth = 1; ctx.setLineDash([3, 4]);
-        for (const f of [0.35, 0.65, 0.95]) { ctx.beginPath(); ctx.arc(X, Y, Rr * f, 0, Math.PI * 2); ctx.stroke(); }
-        ctx.setLineDash([]);
-      } else if (z.type === 'slope' || z.type === 'belt') {
-        if (z.type === 'slope') {
-          const [rx, ry, rw, rh] = z.rect, [dx, dy] = z.dir;
-          const x0 = SX(rx + rw / 2 - dx * rw / 2), y0 = SY(ry + rh / 2 - dy * rh / 2), x1 = SX(rx + rw / 2 + dx * rw / 2), y1 = SY(ry + rh / 2 + dy * rh / 2);
-          const g = ctx.createLinearGradient(x0, y0, x1, y1);
-          g.addColorStop(0, 'rgba(255,255,255,.28)'); g.addColorStop(1, 'rgba(0,0,0,.28)');
-          ctx.fillStyle = g;
-        } else ctx.fillStyle = '#3f3f46';
-        ctx.fill(); ctx.clip();
-        const [dx, dy] = z.dir, off = (time * (z.type === 'belt' ? 14 : 8)) % 8;
-        ctx.strokeStyle = z.type === 'belt' ? 'rgba(250,204,21,.8)' : 'rgba(255,255,255,.55)'; ctx.lineWidth = 2;
-        for (let gx = z.rect[0] + 4; gx < z.rect[0] + z.rect[2]; gx += 8) for (let gy = z.rect[1] + 4; gy < z.rect[1] + z.rect[3]; gy += 8) {
-          const cx = SX(gx + dx * off - dx * 4), cy = SY(gy + dy * off - dy * 4), s = 1.8 * K;
-          const px = -dy, py = dx;
-          ctx.beginPath(); ctx.moveTo(cx - dx * s + px * s, cy - dy * s + py * s); ctx.lineTo(cx, cy); ctx.lineTo(cx - dx * s - px * s, cy - dy * s - py * s); ctx.stroke();
-        }
-      }
-      ctx.restore();
-    }
-  }
-  function drawPlats() {
-    ctx.save(); courseClip(); ctx.clip();
-    for (const P of C.L.plats || []) {
-      const [px, py, pw, ph] = P.rect, e = hOff(P.h);
-      const x = SX(px), y = SY(py), w = pw * K, h = ph * K;
-      const top = { grass: '#5cc163', table: '#c58b4e', step: '#f1f7fb', counter: '#e8e4dc' }[P.style] || '#5cc163';
-      const side = { table: '#7a4a22', step: '#a9c4d6', counter: '#8b7d6b' }[P.style] || '#2e7d32';
-      ctx.fillStyle = 'rgba(0,0,0,.28)'; ctx.fillRect(x + e * 0.5, y + 2, w, h);
-      ctx.fillStyle = side; ctx.fillRect(x, y + h - e, w, e);
-      ctx.fillStyle = 'rgba(0,0,0,.18)'; ctx.fillRect(x, y + h - e, w, 2);
-      ctx.fillStyle = top; ctx.fillRect(x, y - e, w, h);
-      ctx.save(); ctx.beginPath(); ctx.rect(x, y - e, w, h); ctx.clip();
-      if (P.style === 'table') { ctx.strokeStyle = 'rgba(90,50,20,.35)'; ctx.lineWidth = 1; for (let yy = py; yy < py + ph; yy += 4) { ctx.beginPath(); ctx.moveTo(x, SY(yy) - e); ctx.lineTo(x + w, SY(yy) - e); ctx.stroke(); } }
-      else if (P.style === 'step') { ctx.strokeStyle = '#c7dceb'; ctx.lineWidth = 1; for (let xx = px; xx < px + pw; xx += 6) { ctx.beginPath(); ctx.moveTo(SX(xx), y - e); ctx.lineTo(SX(xx), y - e + h); ctx.stroke(); } for (let yy = py; yy < py + ph; yy += 6) { ctx.beginPath(); ctx.moveTo(x, SY(yy) - e); ctx.lineTo(x + w, SY(yy) - e); ctx.stroke(); } }
-      else if (P.style === 'counter') { ctx.strokeStyle = 'rgba(120,110,95,.25)'; ctx.lineWidth = 1; for (let i = 0; i < 6; i++) { ctx.beginPath(); ctx.moveTo(x + w * (i / 6), y - e); ctx.quadraticCurveTo(x + w * (i / 6 + 0.1), y - e + h / 2, x + w * (i / 6 + 0.05), y - e + h); ctx.stroke(); } }
-      ctx.restore();
-      ctx.strokeStyle = 'rgba(255,255,255,.55)'; ctx.lineWidth = 1.5; ctx.strokeRect(x + 0.75, y - e + 0.75, w - 1.5, h - 1.5);
-    }
-    ctx.restore();
-  }
-  function drawFlowers() {
-    const cols = ['#f472b6', '#facc15', '#ffffff', '#c084fc'];
-    for (let i = 0; i < 14; i++) {
-      const x = 12 + (i * 37) % 76, y = 18 + (i * 53) % 128;
-      if (zoneAt(C, x, y) || Math.hypot(x - C.L.hole.x, y - C.L.hole.y) < 10) continue;
-      ctx.fillStyle = cols[i % 4]; ctx.beginPath(); ctx.arc(SX(x), SY(y), K * 0.8, 0, Math.PI * 2); ctx.fill();
-    }
-  }
-  function drawWalls() {
-    const st = WALL_STYLE[C.L.theme];
-    ctx.lineCap = 'round'; ctx.lineJoin = 'round';
-    for (const pass of [0, 1, 2]) {
-      for (const pl of C.L.walls) {
-        ctx.beginPath(); pl.forEach((p, i) => i ? ctx.lineTo(SX(p[0]), SY(p[1])) : ctx.moveTo(SX(p[0]), SY(p[1])));
-        if (pass === 0) { ctx.strokeStyle = 'rgba(0,0,0,.35)'; ctx.lineWidth = WR * 2 * K + 3; ctx.save(); ctx.translate(1.5, 2.5); ctx.stroke(); ctx.restore(); }
-        else if (pass === 1) { ctx.strokeStyle = st.edge || st.c; ctx.lineWidth = WR * 2 * K + 1.5; ctx.stroke(); ctx.strokeStyle = st.c; ctx.lineWidth = WR * 2 * K; ctx.stroke(); }
-        else { ctx.strokeStyle = st.hi; ctx.lineWidth = Math.max(1, WR * K * 0.5); ctx.save(); ctx.translate(-K * 0.3, -K * 0.3); ctx.stroke(); ctx.restore(); }
-      }
-    }
-  }
-  function drawBlock(b) {
-    const x = SX(b.x), y = SY(b.y), w = b.w * K, h = b.h * K;
-    ctx.save();
-    ctx.fillStyle = 'rgba(0,0,0,.3)'; rr(x + 2, y + 3, w, h, K * 2); ctx.fill();
-    if (b.style === 'tub') {
-      ctx.fillStyle = '#ffffff'; rr(x, y, w, h, K * 4); ctx.fill(); ctx.strokeStyle = '#9fb6c6'; ctx.lineWidth = 1.5; ctx.stroke();
-      ctx.fillStyle = '#9ad7f5'; rr(x + K * 2.5, y + K * 2.5, w - K * 5, h - K * 5, K * 3); ctx.fill();
-      ctx.fillStyle = 'rgba(255,255,255,.8)'; for (let i = 0; i < 5; i++) { ctx.beginPath(); ctx.arc(x + w * (0.3 + i * 0.1), y + h * (0.3 + (i % 2) * 0.2), K * (1 + i % 2), 0, Math.PI * 2); ctx.fill(); }
-      ctx.fillStyle = '#c0c8d0'; ctx.beginPath(); ctx.arc(x + w / 2, y + K * 1.4, K * 1.2, 0, Math.PI * 2); ctx.fill();
-    } else if (b.style === 'sink') {
-      ctx.fillStyle = '#fafafa'; rr(x, y, w, h, K * 2); ctx.fill(); ctx.strokeStyle = '#9fb6c6'; ctx.stroke();
-      ctx.fillStyle = '#d6e7f2'; ctx.beginPath(); ctx.ellipse(x + w / 2, y + h * 0.55, w * 0.35, h * 0.3, 0, 0, Math.PI * 2); ctx.fill();
-      ctx.fillStyle = '#9aa5ae'; ctx.fillRect(x + w / 2 - K * 0.6, y + K, K * 1.2, h * 0.25);
-    } else if (b.style === 'fridge') {
-      ctx.fillStyle = '#e5e7eb'; rr(x, y, w, h, K * 1.5); ctx.fill(); ctx.strokeStyle = '#9ca3af'; ctx.stroke();
-      ctx.strokeStyle = '#9ca3af'; ctx.beginPath(); ctx.moveTo(x, y + h * 0.4); ctx.lineTo(x + w, y + h * 0.4); ctx.stroke();
-      ctx.fillStyle = '#6b7280'; ctx.fillRect(x + w - K * 2.5, y + h * 0.15, K, h * 0.18); ctx.fillRect(x + w - K * 2.5, y + h * 0.5, K, h * 0.25);
-    } else if (b.style === 'toyblock') {
-      const cols = ['#ef4444', '#3b82f6', '#22c55e', '#f59e0b'], c = cols[Math.abs(Math.round(b.x + b.y)) % 4];
-      ctx.fillStyle = c; rr(x, y, w, h, K); ctx.fill();
-      ctx.fillStyle = 'rgba(255,255,255,.85)'; ctx.font = `900 ${h * 0.6}px system-ui`; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
-      ctx.fillText('ABCD'[Math.abs(Math.round(b.x)) % 4], x + w / 2, y + h / 2 + 1);
-    } else { ctx.fillStyle = '#8b5a2b'; rr(x, y, w, h, K); ctx.fill(); }
-    ctx.restore();
-  }
-  function drawBumper(k, time) {
-    const x = SX(k.x), y = SY(k.y), r = k.r * K;
-    ctx.beginPath(); ctx.arc(x + 2, y + 3, r, 0, Math.PI * 2); ctx.fillStyle = 'rgba(0,0,0,.3)'; ctx.fill();
-    if (k.style === 'mushroom') {
-      ctx.beginPath(); ctx.arc(x, y, r, 0, Math.PI * 2); ctx.fillStyle = '#ef4444'; ctx.fill();
-      ctx.fillStyle = '#fff'; for (const [dx, dy, s] of [[-0.4, -0.3, 0.22], [0.35, -0.35, 0.18], [0.1, 0.35, 0.2], [-0.3, 0.4, 0.13]]) { ctx.beginPath(); ctx.arc(x + dx * r, y + dy * r, s * r, 0, Math.PI * 2); ctx.fill(); }
-    } else if (k.style === 'rock') {
-      ctx.beginPath(); ctx.arc(x, y, r, 0, Math.PI * 2); const g = ctx.createRadialGradient(x - r * .3, y - r * .3, 1, x, y, r); g.addColorStop(0, '#d4d4d4'); g.addColorStop(1, '#6b6b6b'); ctx.fillStyle = g; ctx.fill();
-    } else if (k.style === 'roll') {
-      ctx.beginPath(); ctx.arc(x, y, r, 0, Math.PI * 2); ctx.fillStyle = '#fafafa'; ctx.fill(); ctx.strokeStyle = '#cbd5e1'; ctx.lineWidth = 1.5; ctx.stroke();
-      ctx.beginPath(); ctx.arc(x, y, r * 0.4, 0, Math.PI * 2); ctx.fillStyle = '#c4a57a'; ctx.fill();
-    } else if (k.style === 'cup') {
-      ctx.beginPath(); ctx.arc(x, y, r, 0, Math.PI * 2); ctx.fillStyle = '#f97316'; ctx.fill();
-      ctx.beginPath(); ctx.arc(x, y, r * 0.7, 0, Math.PI * 2); ctx.fillStyle = '#7c2d12'; ctx.fill();
-      ctx.strokeStyle = '#f97316'; ctx.lineWidth = K * 0.8; ctx.beginPath(); ctx.arc(x + r * 1.1, y, r * 0.4, -1.2, 1.2); ctx.stroke();
-    } else if (k.style === 'ballpit') {
-      const cols = ['#ef4444', '#3b82f6', '#facc15', '#22c55e'];
-      ctx.beginPath(); ctx.arc(x, y, r, 0, Math.PI * 2); ctx.fillStyle = cols[Math.round(k.x) % 4]; ctx.fill();
-      ctx.beginPath(); ctx.arc(x - r * .3, y - r * .3, r * .3, 0, Math.PI * 2); ctx.fillStyle = 'rgba(255,255,255,.5)'; ctx.fill();
-    } else { ctx.beginPath(); ctx.arc(x, y, r, 0, Math.PI * 2); ctx.fillStyle = '#888'; ctx.fill(); }
-  }
-  function drawMover(s) {
-    if (s.mill) {
-      const m = s.mill, x = SX(m.x), y = SY(m.y);
-      ctx.strokeStyle = 'rgba(0,0,0,.3)'; ctx.lineWidth = s.r * 2 * K; ctx.lineCap = 'round';
-      ctx.beginPath(); ctx.moveTo(SX(s.a[0]) + 2, SY(s.a[1]) + 3); ctx.lineTo(SX(s.b[0]) + 2, SY(s.b[1]) + 3); ctx.stroke();
-      ctx.strokeStyle = '#f5f5f4'; ctx.beginPath(); ctx.moveTo(SX(s.a[0]), SY(s.a[1])); ctx.lineTo(SX(s.b[0]), SY(s.b[1])); ctx.stroke();
-      ctx.strokeStyle = '#dc2626'; ctx.lineWidth = s.r * K; ctx.beginPath(); ctx.moveTo(SX(s.a[0]), SY(s.a[1])); ctx.lineTo(SX((s.a[0] + m.x) / 2), SY((s.a[1] + m.y) / 2)); ctx.moveTo(SX(s.b[0]), SY(s.b[1])); ctx.lineTo(SX((s.b[0] + m.x) / 2), SY((s.b[1] + m.y) / 2)); ctx.stroke();
-      ctx.beginPath(); ctx.arc(x, y, 2.4 * K, 0, Math.PI * 2); ctx.fillStyle = '#78350f'; ctx.fill();
-    } else if (s.slide) {
-      const [cx, cy] = s.c, x = SX(cx), y = SY(cy);
-      ctx.fillStyle = 'rgba(0,0,0,.3)'; rr(SX(s.a[0]) - s.r * K + 2, y - s.r * K + 3, (s.b[0] - s.a[0] + 2 * s.r) * K, s.r * 2 * K, s.r * K); ctx.fill();
-      ctx.fillStyle = '#27272a'; rr(SX(s.a[0]) - s.r * K, y - s.r * K, (s.b[0] - s.a[0] + 2 * s.r) * K, s.r * 2 * K, s.r * K); ctx.fill();
-      ctx.fillStyle = '#52525b'; rr(SX(s.a[0]) - s.r * K + 2, y - s.r * K + 2, (s.b[0] - s.a[0] + 2 * s.r) * K - 4, s.r * K, s.r * K * 0.5); ctx.fill();
-      ctx.fillStyle = '#7c4a1e'; rr(SX(s.b[0]) + s.r * K - 2, y - K * 0.8, 6 * K, K * 1.6, K * 0.8); ctx.fill();
-    }
-  }
-  function drawPushable(p) {
-    const x = SX(p.x), y = SY(p.y), r = p.r * K;
-    ctx.beginPath(); ctx.arc(x + 2, y + 3, r, 0, Math.PI * 2); ctx.fillStyle = 'rgba(0,0,0,.3)'; ctx.fill();
-    if (p.style === 'duck') {
-      ctx.beginPath(); ctx.ellipse(x, y + r * 0.15, r, r * 0.8, 0, 0, Math.PI * 2); ctx.fillStyle = '#facc15'; ctx.fill();
-      ctx.beginPath(); ctx.arc(x + r * 0.35, y - r * 0.35, r * 0.5, 0, Math.PI * 2); ctx.fill();
-      ctx.fillStyle = '#f97316'; ctx.beginPath(); ctx.ellipse(x + r * 0.85, y - r * 0.3, r * 0.3, r * 0.15, 0, 0, Math.PI * 2); ctx.fill();
-      ctx.fillStyle = '#111'; ctx.beginPath(); ctx.arc(x + r * 0.45, y - r * 0.45, r * 0.08, 0, Math.PI * 2); ctx.fill();
-    } else { ctx.beginPath(); ctx.arc(x, y, r, 0, Math.PI * 2); ctx.fillStyle = '#a16207'; ctx.fill(); }
-  }
-  function drawTubes(time) {
-    for (const tb of C.L.tubes || []) {
-      const ax = SX(tb.a[0]), ay = SY(tb.a[1]), bx = SX(tb.b[0]), by = SY(tb.b[1]);
-      // tubo por arriba (semitransparente)
-      const mx = (ax + bx) / 2 + (by - ay) * 0.25, my = (ay + by) / 2 - (bx - ax) * 0.25;
-      ctx.save(); ctx.globalAlpha = 0.45; ctx.strokeStyle = tb.color; ctx.lineWidth = 3.6 * K; ctx.lineCap = 'round';
-      ctx.beginPath(); ctx.moveTo(ax, ay); ctx.quadraticCurveTo(mx, my, bx, by); ctx.stroke();
-      ctx.globalAlpha = 0.35; ctx.strokeStyle = '#fff'; ctx.lineWidth = K * 0.8; ctx.setLineDash([K * 2, K * 3]); ctx.lineDashOffset = -time * 20;
-      ctx.beginPath(); ctx.moveTo(ax, ay); ctx.quadraticCurveTo(mx, my, bx, by); ctx.stroke(); ctx.restore();
-      // boca (entrada)
-      ctx.beginPath(); ctx.arc(ax, ay, 3.6 * K, 0, Math.PI * 2); ctx.fillStyle = tb.color; ctx.fill();
-      ctx.beginPath(); ctx.arc(ax, ay, 2.6 * K, 0, Math.PI * 2); ctx.fillStyle = '#111'; ctx.fill();
-      if (tb.drain) { ctx.strokeStyle = '#c0c8d0'; ctx.lineWidth = 1; for (let i = -1; i <= 1; i++) { ctx.beginPath(); ctx.moveTo(ax - 2.2 * K, ay + i * K); ctx.lineTo(ax + 2.2 * K, ay + i * K); ctx.stroke(); } }
-      // salida
-      ctx.beginPath(); ctx.arc(bx, by, 3.2 * K, 0, Math.PI * 2); ctx.strokeStyle = tb.color; ctx.lineWidth = 2; ctx.stroke();
-      ctx.fillStyle = tb.color; ctx.beginPath();
-      const ex = bx + tb.dir[0] * 5 * K, ey = by + tb.dir[1] * 5 * K, px = -tb.dir[1] * 1.6 * K, py = tb.dir[0] * 1.6 * K;
-      ctx.moveTo(ex, ey); ctx.lineTo(bx + tb.dir[0] * 3 * K + px, by + tb.dir[1] * 3 * K + py); ctx.lineTo(bx + tb.dir[0] * 3 * K - px, by + tb.dir[1] * 3 * K - py); ctx.fill();
-    }
-  }
-  function drawHole(time) {
-    const h = C.L.hole, x = SX(h.x), y = SY(h.y) - (h.plat !== undefined ? hOff(C.L.plats[h.plat].h) : 0), r = C.holeR * K;
-    if (h.type === 'toilet') {
-      ctx.fillStyle = 'rgba(0,0,0,.25)'; ctx.beginPath(); ctx.ellipse(x + 2, y + 3, r * 2.1, r * 2.5, 0, 0, Math.PI * 2); ctx.fill();
-      // tanque
-      ctx.fillStyle = '#f8fafc'; rr(x - r * 1.9, y - r * 3.6, r * 3.8, r * 1.4, r * 0.3); ctx.fill(); ctx.strokeStyle = '#94a3b8'; ctx.lineWidth = 1.5; ctx.stroke();
-      ctx.fillStyle = '#cbd5e1'; ctx.beginPath(); ctx.arc(x, y - r * 2.9, r * 0.3, 0, Math.PI * 2); ctx.fill();
-      // asiento
-      ctx.beginPath(); ctx.ellipse(x, y, r * 1.9, r * 2.3, 0, 0, Math.PI * 2); ctx.fillStyle = '#ffffff'; ctx.fill(); ctx.stroke();
-      ctx.beginPath(); ctx.ellipse(x, y + r * 0.15, r * 1.25, r * 1.6, 0, 0, Math.PI * 2); ctx.fillStyle = '#7dd3fc'; ctx.fill();
-      ctx.beginPath(); ctx.arc(x, y, r, 0, Math.PI * 2); ctx.fillStyle = '#0c4a6e'; ctx.fill();
-    } else if (h.type === 'pot') {
-      ctx.beginPath(); ctx.arc(x + 2, y + 3, r * 1.8, 0, Math.PI * 2); ctx.fillStyle = 'rgba(0,0,0,.3)'; ctx.fill();
-      ctx.fillStyle = '#6b7280'; rr(x - r * 2.5, y - r * 0.35, r * 5, r * 0.7, r * 0.3); ctx.fill();
-      ctx.beginPath(); ctx.arc(x, y, r * 1.8, 0, Math.PI * 2); const g = ctx.createRadialGradient(x - r * .5, y - r * .5, 1, x, y, r * 1.8); g.addColorStop(0, '#e5e7eb'); g.addColorStop(1, '#6b7280'); ctx.fillStyle = g; ctx.fill();
-      ctx.beginPath(); ctx.arc(x, y, r, 0, Math.PI * 2); ctx.fillStyle = '#1f2937'; ctx.fill();
-      ctx.strokeStyle = 'rgba(255,255,255,.5)'; ctx.lineWidth = 1.2; for (let i = 0; i < 3; i++) { const t = (time * 0.8 + i / 3) % 1; ctx.globalAlpha = 1 - t; ctx.beginPath(); ctx.arc(x + Math.sin(i * 2 + time) * r * 0.4, y - r * 2 - t * r * 3, r * 0.4, 0, Math.PI * 2); ctx.stroke(); } ctx.globalAlpha = 1;
-    } else if (h.type === 'toybox') {
-      ctx.fillStyle = 'rgba(0,0,0,.3)'; rr(x - r * 2 + 2, y - r * 2 + 3, r * 4, r * 4, r * 0.4); ctx.fill();
-      ctx.fillStyle = '#7c3aed'; rr(x - r * 2, y - r * 2, r * 4, r * 4, r * 0.4); ctx.fill();
-      ctx.fillStyle = '#facc15'; ctx.fillRect(x - r * 2, y - r * 0.25, r * 4, r * 0.5);
-      ctx.beginPath(); ctx.arc(x, y, r, 0, Math.PI * 2); ctx.fillStyle = '#1e1b4b'; ctx.fill();
-    } else {
-      ctx.beginPath(); ctx.arc(x, y, r * 1.35, 0, Math.PI * 2); ctx.fillStyle = 'rgba(255,255,255,.25)'; ctx.fill();
-      ctx.beginPath(); ctx.arc(x, y, r, 0, Math.PI * 2); ctx.fillStyle = '#0b1f12'; ctx.fill();
-      ctx.beginPath(); ctx.arc(x, y + r * 0.2, r * 0.8, Math.PI * 1.1, Math.PI * 1.9); ctx.strokeStyle = 'rgba(255,255,255,.25)'; ctx.lineWidth = 1; ctx.stroke();
-      // bandera
-      const fx2 = x + r * 0.2, top = y - 14 * K;
-      ctx.strokeStyle = '#e5e7eb'; ctx.lineWidth = 2; ctx.beginPath(); ctx.moveTo(fx2, y); ctx.lineTo(fx2, top); ctx.stroke();
-      ctx.fillStyle = '#ef4444'; ctx.beginPath(); const wv = Math.sin(time * 4) * K; ctx.moveTo(fx2, top); ctx.lineTo(fx2 + 8 * K, top + 2.5 * K + wv * 0.3); ctx.lineTo(fx2, top + 5 * K); ctx.fill();
-    }
-  }
-  function drawBall(b, i) {
-    if (b.in || b.tube) return;
-    const under = platAt(b.x, b.y, b.h + 0.01), gh = under ? under.h : 0;
-    const lift = b.air ? b.h - gh : 0;
-    const x = SX(b.x), y = SY(b.y) - hOff(b.air ? b.h : gh), r = BR * K * (1 + lift * 0.035);
-    ctx.globalAlpha = b.out ? 0.3 : 1;
-    const sy0 = SY(b.y) - hOff(gh);
-    ctx.beginPath(); ctx.ellipse(x + 1.5 + lift * 0.3, sy0 + 2.5, BR * K, BR * K * 0.8, 0, 0, Math.PI * 2); ctx.fillStyle = `rgba(0,0,0,${0.35 / (1 + lift * 0.12)})`; ctx.fill();
-    ctx.beginPath(); ctx.arc(x, y, r, 0, Math.PI * 2);
-    const g = ctx.createRadialGradient(x - r * .35, y - r * .35, r * .1, x, y, r); g.addColorStop(0, '#fff'); g.addColorStop(1, '#d4d4d4');
-    ctx.fillStyle = g; ctx.fill();
-    if (world.balls.length > 1 || mode !== 'solo') { ctx.beginPath(); ctx.arc(x, y, r * 0.45, 0, Math.PI * 2); ctx.fillStyle = PCOL[i].main; ctx.fill(); }
-    ctx.globalAlpha = 1;
-    if ((phase === 'aim' || phase === 'cpu' || phase === 'waitRemote') && turn === i && !b.out) {
-      ctx.beginPath(); ctx.arc(x, y, r + 4 + Math.sin(performance.now() / 150) * 1.5, 0, Math.PI * 2);
-      ctx.strokeStyle = PCOL[i].main; ctx.lineWidth = 2; ctx.stroke();
-    }
-  }
   function drawAim() {
     let a = null;
     if (aim) a = aimParams(aim);
     else if (phase === 'cpu' && cpuPlan) a = { ang: cpuPlan.a, pow: cpuPlan.p * Math.max(0, Math.min(1, 1 - (cpuPlan.tStart - world.t) / 0.8)) };
     if (!a) return;
-    const b = world.balls[turn], x = SX(b.x), y = SY(b.y) - hOff(b.plat >= 0 ? C.L.plats[b.plat].h : 0);
+    const b = world.balls[turn];
+    const gh = (b.plat >= 0 ? C.L.plats[b.plat].h : 0) + terrainH(b.x, b.y);
     const col = `hsl(${120 - a.pow * 120}, 85%, 50%)`;
     const usingIron = aim ? ironAllowed() && club === 'iron' : cpuPlan && cpuPlan.club === 'iron';
+    const dx = Math.cos(a.ang), dy = Math.sin(a.ang);
     if (usingIron) {
-      const [lx, ly] = ironLanding(a.ang, a.pow), tx = b.x + lx, ty = b.y + ly;
-      const P = platAt(tx, ty), mx = SX(tx), my = SY(ty) - (P ? hOff(P.h) : 0);
-      ctx.strokeStyle = '#fff'; ctx.lineWidth = 2; ctx.setLineDash([5, 5]);
-      ctx.beginPath(); ctx.moveTo(x, y); ctx.quadraticCurveTo((x + mx) / 2, Math.min(y, my) - (12 + a.pow * 30) * K * HK, mx, my); ctx.stroke(); ctx.setLineDash([]);
-      ctx.beginPath(); ctx.ellipse(mx, my, 3.5 * K, 2.6 * K, 0, 0, Math.PI * 2); ctx.stroke();
-      ctx.beginPath(); ctx.moveTo(mx - 2 * K, my); ctx.lineTo(mx + 2 * K, my); ctx.moveTo(mx, my - 1.5 * K); ctx.lineTo(mx, my + 1.5 * K); ctx.stroke();
+      const [lx, ly] = ironLanding(a.ang, a.pow), dist = Math.hypot(lx, ly);
+      const pw = Math.max(0, Math.min(1, a.pow)), vz = 30 + pw * 42, hmax = vz * vz / (2 * GA);
+      ctx.strokeStyle = '#fff'; ctx.lineWidth = 2; ctx.setLineDash([5, 5]); ctx.beginPath();
+      for (let i = 0; i <= 24; i++) { const t = i / 24; const [x, y] = P(b.x + dx * dist * t, b.y + dy * dist * t, gh + 4 * hmax * t * (1 - t)); i ? ctx.lineTo(x, y) : ctx.moveTo(x, y); }
+      ctx.stroke(); ctx.setLineDash([]);
+      const tx = b.x + lx, ty = b.y + ly, Pl = platAt(tx, ty), th = (Pl ? Pl.h : 0) + terrainH(tx, ty);
+      ell(tx, ty, th, 3.5); ctx.stroke();
     }
-    // guía de recorrido en los niveles de práctica
     if (aim && mode === 'solo' && levelIdx <= 2 && !usingIron) {
       const w2 = cloneWorld(world); applyShot(w2, turn, a.ang, a.pow);
-      ctx.fillStyle = 'rgba(255,255,255,.75)';
-      for (let i = 0; i < 360; i++) { step(C, w2, null); if (i % 10 === 0) { const bb = w2.balls[turn]; if (bb.in || bb.tube) break; ctx.beginPath(); ctx.arc(SX(bb.x), SY(bb.y), 1.6, 0, Math.PI * 2); ctx.fill(); } if (!moving(w2)) break; }
+      ctx.fillStyle = 'rgba(255,255,255,.8)';
+      for (let i = 0; i < 360; i++) { step(C, w2, null); if (i % 10 === 0) { const bb = w2.balls[turn]; if (bb.in || bb.tube) break; const [x, y] = P(bb.x, bb.y, terrainH(bb.x, bb.y) + 0.5); ctx.beginPath(); ctx.arc(x, y, 1.8, 0, Math.PI * 2); ctx.fill(); } if (!moving(w2)) break; }
     }
-    const len = (8 + a.pow * 26) * K;
-    const ex = x + Math.cos(a.ang) * len, ey = y + Math.sin(a.ang) * len;
+    const len = 6 + a.pow * 22;
+    const [x0, y0] = P(b.x, b.y, gh + 0.5), [ex, ey] = P(b.x + dx * len, b.y + dy * len, gh + 0.5);
     ctx.strokeStyle = col; ctx.lineWidth = 4; ctx.lineCap = 'round';
-    ctx.beginPath(); ctx.moveTo(x, y); ctx.lineTo(ex, ey); ctx.stroke();
-    ctx.beginPath(); ctx.moveTo(ex - Math.cos(a.ang - .5) * 9, ey - Math.sin(a.ang - .5) * 9); ctx.lineTo(ex, ey); ctx.lineTo(ex - Math.cos(a.ang + .5) * 9, ey - Math.sin(a.ang + .5) * 9); ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(x0, y0); ctx.lineTo(ex, ey); ctx.stroke();
+    const sa = Math.atan2(ey - y0, ex - x0);
+    ctx.beginPath(); ctx.moveTo(ex - Math.cos(sa - .5) * 9, ey - Math.sin(sa - .5) * 9); ctx.lineTo(ex, ey); ctx.lineTo(ex - Math.cos(sa + .5) * 9, ey - Math.sin(sa + .5) * 9); ctx.stroke();
     if (aim) {
-      // gomera: línea al dedo
-      ctx.strokeStyle = 'rgba(255,255,255,.35)'; ctx.lineWidth = 2; ctx.setLineDash([4, 4]);
-      ctx.beginPath(); ctx.moveTo(x, y); ctx.lineTo(x - Math.cos(a.ang) * len * 0.6, y - Math.sin(a.ang) * len * 0.6); ctx.stroke(); ctx.setLineDash([]);
+      const [bx2, by2] = P(b.x - dx * len * 0.6, b.y - dy * len * 0.6, gh + 0.5);
+      ctx.strokeStyle = 'rgba(255,255,255,.4)'; ctx.lineWidth = 2; ctx.setLineDash([4, 4]);
+      ctx.beginPath(); ctx.moveTo(x0, y0); ctx.lineTo(bx2, by2); ctx.stroke(); ctx.setLineDash([]);
     }
     const bw = Math.min(200, W * 0.5), bx = (W - bw) / 2, by = H - 30;
     ctx.fillStyle = 'rgba(0,0,0,.45)'; rr(bx, by, bw, 12, 6); ctx.fill();
@@ -1521,24 +1747,6 @@
     if (show) $('clubs').querySelectorAll('button').forEach(b => b.classList.toggle('on', b.dataset.c === club));
   }
   $('clubs').addEventListener('pointerdown', e => { e.stopPropagation(); const b = e.target.closest('button'); if (b) { club = b.dataset.c; vibrate(8); } });
-  function drawWind(time) {
-    const w = world.wind; const m = Math.hypot(w[0], w[1]);
-    if (!m) return;
-    const indoor = INDOOR[C.L.theme];
-    const bx = W - 92, by = 58, bw = 84, bh = 50;
-    ctx.save();
-    ctx.fillStyle = 'rgba(0,0,0,.5)'; rr(bx, by, bw, bh, 12); ctx.fill();
-    const cx = bx + 24, cy = by + 25, ang = Math.atan2(w[1], w[0]);
-    ctx.translate(cx, cy); ctx.rotate(ang);
-    const L2 = 9 + (m / 125) * 8, wob = Math.sin(time * 8) * 1.5;
-    ctx.strokeStyle = '#bfe3ff'; ctx.lineWidth = 3; ctx.lineCap = 'round';
-    ctx.beginPath(); ctx.moveTo(-L2, 0); ctx.lineTo(L2 + wob, 0); ctx.moveTo(L2 + wob - 6, -5); ctx.lineTo(L2 + wob, 0); ctx.lineTo(L2 + wob - 6, 5); ctx.stroke();
-    ctx.restore();
-    ctx.fillStyle = '#fff'; ctx.font = '800 11px system-ui'; ctx.textAlign = 'left'; ctx.textBaseline = 'middle';
-    ctx.fillText(indoor ? 'Ventilador' : 'Viento', bx + 44, by + 18);
-    ctx.fillStyle = '#bfe3ff'; ctx.font = '700 11px system-ui';
-    ctx.fillText(m < 60 ? 'suave' : m < 100 ? 'medio' : 'fuerte', bx + 44, by + 33);
-  }
   function drawTurnTip() {
     let txt = null;
     if (phase === 'aim') txt = mode === 'solo' ? `Golpe ${world.balls[0].strokes + 1} · par ${C.L.par}` : turn === me || mode === 'cpu' ? 'Te toca · tirá hacia atrás y soltá' : `Turno de ${names[turn]}`;
@@ -1585,11 +1793,15 @@
         const msg = b.strokes === 1 ? '¡HOYO EN UNO!' : d <= -2 ? '¡Águila!' : d === -1 ? '¡Birdie!' : d === 0 ? '¡Par!' : '¡Adentro!';
         flash(C.L.hole.type === 'toilet' ? `🚽 ${msg}` : msg, '#fde047');
         vibrate([40, 40, 100]);
-        for (let i = 0; i < 30; i++) sparks.push({ x: SX(C.L.hole.x), y: SY(C.L.hole.y), vx: rand(-120, 120), vy: rand(-160, 40), t: 0, life: rand(0.5, 1), c: ['#fde047', '#4ade80', '#60a5fa', '#f472b6'][i % 4] });
+        const [hx, hy] = P(C.L.hole.x, C.L.hole.y, terrainH(C.L.hole.x, C.L.hole.y));
+        for (let i = 0; i < 30; i++) sparks.push({ x: hx, y: hy, vx: rand(-120, 120), vy: rand(-160, 40), t: 0, life: rand(0.5, 1), c: ['#fde047', '#4ade80', '#60a5fa', '#f472b6'][i % 4] });
       } else if (e.k === 'water') { flash('¡Al agua! +1', '#7dd3fc'); vibrate(150); }
       else if (e.k === 'gate') { flash('¡Compuerta abierta!', '#4ade80'); vibrate([30, 30, 30]); }
       else if (e.k === 'tubeIn') vibrate(20);
-      else if (e.k === 'land') { vibrate(10); for (let i = 0; i < 6; i++) sparks.push({ x: SX(e.x), y: SY(e.y) - (e.plat >= 0 ? hOff(C.L.plats[e.plat].h) : 0), vx: rand(-40, 40), vy: rand(-50, -10), t: 0, life: 0.35, c: 'rgba(255,255,255,.8)' }); }
+      else if (e.k === 'loopIn') vibrate([20, 30, 20]);
+      else if (e.k === 'loopFail') { flash('Le faltó fuerza…', '#fff'); vibrate(60); }
+      else if (e.k === 'jump') { flash('¡Salto!', '#bfdbfe'); vibrate(25); }
+      else if (e.k === 'land') { vibrate(10); const [x, y] = P(e.x, e.y, e.plat >= 0 ? C.L.plats[e.plat].h : 0); for (let i = 0; i < 6; i++) sparks.push({ x, y, vx: rand(-40, 40), vy: rand(-50, -10), t: 0, life: 0.35, c: 'rgba(255,255,255,.8)' }); }
       else if (e.k === 'falloff') flash('¡Se cayó!', '#fff');
       else if (e.k === 'hit' || e.k === 'bump') vibrate(6);
     }
@@ -1598,7 +1810,6 @@
   function draw(dt, time) {
     if (!C) { ctx.fillStyle = '#0f2a1a'; ctx.fillRect(0, 0, W, H); syncClubs(); return; }
     drawCourse(time);
-    world.balls.forEach(drawBall);
     drawAim();
     drawTurnTip();
     syncClubs();
@@ -1760,7 +1971,7 @@
 
   // Acceso para pruebas
   window.__golf = {
-    LEVELS, compileLevel, newWorld, simulate, planShot, cloneWorld,
+    LEVELS, compileLevel, newWorld, simulate, planShot, cloneWorld, lane,
     get s() { return { phase, turn, me, mode, levelIdx, t: world && +world.t.toFixed(2), balls: world && world.balls.map(b => ({ x: +b.x.toFixed(2), y: +b.y.toFixed(2), in: b.in, out: b.out, strokes: b.strokes })), match: match && { hi: match.hi, holes: match.holes, cards: match.cards } }; },
     shootMine(ang, pow, cl = 'putt') { if (!canAim()) return false; if (mode === 'online') send({ t: 'shot', n: shotN, t0: world.t, ang, pow, p: me, club: cl }); shoot(turn, ang, pow, cl); return true; },
     plan(cb) { planShot(C, world, turn, 2, cb, ironAllowed() ? ['putt', 'iron'] : ['putt']); },
