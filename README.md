@@ -87,7 +87,7 @@ En iPhone, al tocar **Jugar** el navegador pide permiso para usar el movimiento:
 - Cada hoyo tiene un **par** y un máximo de golpes (el doble del par + 2).
 - Más obstáculos: paredes que rebotan, hongos y rollos de papel saltarines, **toboganes**, **cintas**, **agua** (vuelve adonde le pegaste y suma 1 golpe), **arena**, **jabón**, **patitos** que se empujan, **molinos** y **sartenes** que se mueven, y **botones** que abren compuertas.
 
-**Niveles** (19): 1-5 césped (los primeros enseñan a tirar), 6-10 jardín (hierro, lomas y pozos, la mesa alta, viento), 11-14 baño (el hoyo es un inodoro, uno de ellos arriba de un escalón), 15-17 cocina (el hoyo es una olla, una vez sobre la mesada) y 18-19 cuarto de juegos. Estrellas: 3 con el par o menos · 2 con un golpe más · 1 si la embocás.
+**Niveles** (50): 1-5 césped (los primeros enseñan a tirar), 6-10 jardín (hierro, lomas y pozos, la mesa alta, viento), 11-14 baño (el hoyo es un inodoro, uno de ellos arriba de un escalón), 15-17 cocina (el hoyo es una olla, una vez sobre la mesada), 18-19 cuarto de juegos, y del 20 al 50 recorridos que van rotando por todos los escenarios, cada vez con más obstáculos y viento. Los niveles 20 a 50 se armaron con un generador y se verificaron haciendo que la máquina los juegue (todos tienen solución y el par sale de esas partidas). Estrellas: 3 con el par o menos · 2 con un golpe más · 1 si la embocás.
 
 **Contra la máquina**: recorrido de 3, 6 o 9 hoyos, por turnos, con la máquina en fácil, normal o difícil (elige palo y tiro simulando la física). **Desafío en vivo**: igual, contra otra persona en su celular (el que crea la sala elige la cantidad de hoyos). Gana el que suma menos golpes.
 
